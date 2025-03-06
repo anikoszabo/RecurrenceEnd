@@ -1,0 +1,151 @@
+
+#' Estimate the distribution of the ending event of a recurrent event process
+#'
+#' @param formula a two-sided formula with a \code{\link[reda]{Recur}} object specifying the
+#' recurrent event process on the left-hand side, and the predictors of its intensity
+#' on the right-hand side. Origin and terminal events in \code{Recur} are not respected.
+#' @param method character string specifying the estimation method
+#' @param threshold optional numeric value, specifies the threshold for the "threshold" method.
+#' Defaults to 0, which is equivalent to the "naive" method.
+#' @param quantile optional numeric value between 0 and 1 (exclusive) specifying the
+#' quantile used for the "quantile" method.
+#' @param data an optional data frame containing the variables in the formula
+#' @param subset an optional vector specifying a subset of observations to be used
+#' @param na.action a function which indicates what should happen when the data
+#' contains NAs. The default is set by the na.action setting of \code{options},
+#' which in turn defaults to \code{na.omit}.
+#' @param control an optional list of parameters controlling the NPMLE estimation
+#' @return a list with components \code{fit} - an object of class \link[stats]{stepfun} with the
+#' estimated survival distribution, \code{method} - the method used, and additional
+#' information based on the method used
+#' @export
+#' @importFrom stats stepfun model.frame model.extract update quantile
+#' @importFrom survival survfit coxph
+
+
+estimate_end <- function(formula,
+                    method=c("naive", "threshold","quantile", "NPMLE"),
+                    threshold = 0, quantile=0.95, data, subset, na.action,
+                    control=list(verbose=FALSE,  eps = 1e-3, cnmiter = 2, maxiter = 100)){
+  method <- match.arg(method)
+
+  # based on reda::rateReg
+  if (missing(formula))
+    stop("Argument 'formula' is required.")
+  if (missing(data))
+    data <- environment(formula)
+  if (!missing(subset)) {
+    sSubset <- substitute(subset)
+    subIdx <- eval(sSubset, data, parent.frame())
+    if (!is.logical(subIdx))
+      stop("'subset' must be logical")
+    subIdx <- subIdx & !is.na(subIdx)
+    data <- data[subIdx, ]
+  }
+  mcall <- match.call(expand.dots = FALSE)
+  mmcall <- match(c("formula", "data", "na.action"), names(mcall),
+                  0L)
+  mcall <- mcall[c(1L, mmcall)]
+  mcall$data <- data
+  mcall$drop.unused.levels <- TRUE
+  mcall[[1L]] <- quote(stats::model.frame)
+  mf <- eval(mcall, parent.frame())
+  resp <- stats::model.extract(mf, "response")
+  if (!reda::is.Recur(resp))
+    stop("Response in the formula must be a 'Recur' object.")
+
+  if (length(na.action <- attr(mf, "na.action"))) {
+    if (control$verbose)
+      message("Observations with missing value in covariates ",
+              "are removed.\nChecking the new dataset again...\n",
+              appendLF = FALSE)
+    resp <- reda::check_Recur(resp, check = "hard")
+  }
+
+  Dat <- as.data.frame(resp@.Data)
+  # arrange data into nice order
+  ord <- resp@ord
+  Dat <- Dat[ord,]
+
+  # create indicators for largest event time, latest time-point (censoring time)
+  # allow for no-event intervals within the recurrent event process
+  events <- Dat$event==1
+  last_event_idx <- tapply(seq_len(nrow(Dat)), Dat["id"],
+                           function(x)max(x[events[x]]))
+  last_event <- Dat$time2[last_event_idx]
+  last_time <- Dat$time2[resp@last_idx]
+
+  if (method == "naive"){
+    res <- survival::survfit(Surv(last_event) ~ 1)
+    return(list(fit = survfit_to_survfun(res),
+                method = method))
+  }
+  if (method == "threshold"){
+    if (!isTRUE(threshold >= 0)) stop("'threshold' should be a positive number")
+    res <- survival::survfit(Surv(last_event, last_time-last_event >= threshold ) ~ 1)
+    return(list(fit = survfit_to_survfun(res),
+                method = method,
+                threshold = threshold))
+  }
+  if (method == "quantile"){
+    if (!isTRUE(quantile > 0 & quantile < 1))
+      stop("'quantile' should be between 0 and 1 (exclusive)")
+    # estimate gap-time distribution to recurrent event part
+    gap_fit <- survival::survfit(Surv(time2 - time1, event) ~ 1, data = Dat[-resp@last_idx,])
+    thresh <- stats::quantile(gap_fit, probs = quantile, conf.int = FALSE)
+    res <- survival::survfit(Surv(last_event, last_time-last_event >= thresh ) ~ 1)
+
+    return(list(fit = survfit_to_survfun(res),
+                method = method,
+                quantile = quantile,
+                threshold = thresh))
+  }
+
+  # add predictors to Dat - everything on the RHS of 'formula'
+  covars <- all.vars(formula[-2])
+  if (any(names(Dat) %in% covars))
+    stop(paste("Please avoid using '", toString(names(Dat)), "' as predictor names in 'formula'"))
+
+  if (length(na.action)>0 & inherits(na.action, "omit")){
+    Dat <- cbind(Dat, data[-na.action, ][ord,covars,drop=FALSE])
+  } else {
+    Dat <- cbind(Dat, data[ord,covars,drop=FALSE])
+  }
+
+  # check for only one 'trailing' event
+  next_to_last <- (resp@last_idx - 1)[resp@last_idx > resp@first_idx]
+  if (!all(events[next_to_last]))
+    stop("There should be only one censored interval after the last event")
+
+  tmax_unique <- sort(unique(last_event))
+
+  # data from 'trailing gaps'
+  trailDat <- Dat[resp@last_idx,]
+
+  if (method == "NPMLE"){
+    # Fit gap-time model to recurrent event part
+    surv_fla <- stats::update(formula, Surv(time2-time1, event) ~ . + frailty(id))
+    environment(surv_fla) <- list2env(Dat)
+
+    # ignore warning that is due to approx zero estimate for frailty variance
+    suppressWarnings(
+      mod <- survival::coxph(surv_fla, data=Dat[-resp@last_idx,])
+    )
+
+    # Create 'npkm' object
+    mod_npkm <- npkm_from_mod(trail_dat = trailDat, cox_model = mod)
+
+    # fit NPMLE
+    npmix_fit <- nspmix::cnm(mod_npkm, init=list(mix=nspmix::disc(mod_npkm$ak)),
+                     model="proportions", plot="null", verbose=0)
+
+    res <- stats::stepfun(npmix_fit$mix$pt, 1-cumsum(c(0, npmix_fit$mix$pr)))
+    return(list(fit = res,
+                method = method,
+                 model = mod))
+    }
+
+
+}
+
+
