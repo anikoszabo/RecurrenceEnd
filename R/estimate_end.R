@@ -14,7 +14,10 @@
 #' @param na.action a function which indicates what should happen when the data
 #' contains NAs. The default is set by the na.action setting of \code{options},
 #' which in turn defaults to \code{na.omit}.
-#' @param control an optional list of parameters controlling the NPMLE estimation
+#' @param verbose logical value, if TRUE then information is displayed during computation
+#' @param known_recur optional list specifying the known recurrence survival distribution
+#' function for each subject. It should have two components: \code{S0} - the baseline survival
+#' function, and \code{coefs} - the coefficients of the recurrence model specified in \code{formula}
 #' @return a list with components \code{fit} - an object of class \link[stats]{stepfun} with the
 #' estimated survival distribution, \code{method} - the method used, and additional
 #' information based on the method used
@@ -26,7 +29,7 @@
 estimate_end <- function(formula,
                     method=c("naive", "threshold","quantile", "NPMLE"),
                     threshold = 0, quantile=0.95, data, subset, na.action,
-                    control=list(verbose=FALSE,  eps = 1e-3, cnmiter = 2, maxiter = 100)){
+                    verbose=FALSE, known_recur=NULL)){
   method <- match.arg(method)
 
   # based on reda::rateReg
@@ -55,7 +58,7 @@ estimate_end <- function(formula,
     stop("Response in the formula must be a 'Recur' object.")
 
   if (length(na.action <- attr(mf, "na.action"))) {
-    if (control$verbose)
+    if (verbose)
       message("Observations with missing value in covariates ",
               "are removed.\nChecking the new dataset again...\n",
               appendLF = FALSE)
@@ -127,17 +130,21 @@ estimate_end <- function(formula,
     surv_fla <- stats::update(formula, Surv(time2-time1, event) ~ . + frailty(id))
     environment(surv_fla) <- list2env(Dat)
 
-    # ignore warning that is due to approx zero estimate for frailty variance
-    suppressWarnings(
-      mod <- survival::coxph(surv_fla, data=Dat[-resp@last_idx,])
-    )
+    if (!is.null(known_recur)){
+      mod_npkm <- npkm_known_S(trail_dat = trailDat, formula = formula,
+                               S0 = known_recur$S0, coefs = known_recur$coefs)
+    } else {
+      # ignore warning that is due to approx zero estimate for frailty variance
+      suppressWarnings(
+        mod <- survival::coxph(surv_fla, data=Dat[-resp@last_idx,])
+      )
 
-    # Create 'npkm' object
-    mod_npkm <- npkm_from_mod(trail_dat = trailDat, cox_model = mod)
-
+      # Create 'npkm' object
+      mod_npkm <- npkm_from_mod(trail_dat = trailDat, cox_model = mod)
+    }
     # fit NPMLE
     npmix_fit <- nspmix::cnm(mod_npkm, init=list(mix=nspmix::disc(mod_npkm$ak)),
-                     model="proportions", plot="null", verbose=0)
+                     model="proportions", plot="null", verbose=verbose)
 
     res <- stats::stepfun(npmix_fit$mix$pt, 1-cumsum(c(0, npmix_fit$mix$pr)))
     return(list(fit = res,

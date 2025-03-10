@@ -1,7 +1,7 @@
 # Define object of class 'npkm' for our unobserved end-time model
 # assumes a row per patient with Tmax and C
 # and a proportional hazards model so S_i = S0_i ^ (exp(lin_pred))
-# and S - a function that generates gap-time survival probs for this patient
+# and S0 - a function that generates gap-time survival probs for this patient
 #' @importFrom stats stepfun model.matrix quantile
 #' @importFrom survival basehaz
 #' @importFrom utils tail
@@ -57,6 +57,25 @@ npkm_from_mod <- function(trail_dat, cox_model){
   mod_npkm
 }
 
+npkm_known_S <- function(npkm_known_S(trail_dat, formula, S0, coefs)){
+  # compute linear predictor for trailing gap
+  # Create  model matrix
+  X <- stats::model.matrix(formula[-2], data = trail_dat)
+  X <- X[, -1, drop=FALSE]  # Drop intercept
+
+  # linear predictor
+  if (is.null(coefs)){  # if no predictors
+    lin_pred <- 0
+  } else {
+    lin_pred <- X %*% coefs
+  }
+
+  # Create 'npkm' object
+  mod_npkm <- npkm(time=trail_dat$time1, censor=trail_dat$time2,
+                   lin_pred=drop(lin_pred), S0)
+
+  mod_npkm
+}
 
 length.npkm <- function(x) length(x$time)
 weight.npkm <- function(x, beta) rep(1, length(x$time))
