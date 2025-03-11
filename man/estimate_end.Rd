@@ -12,7 +12,8 @@ estimate_end(
   data,
   subset,
   na.action,
-  control = list(verbose = FALSE, eps = 0.001, cnmiter = 2, maxiter = 100)
+  verbose = FALSE,
+  known_recur = NULL
 )
 }
 \arguments{
@@ -36,7 +37,11 @@ quantile used for the "quantile" method.}
 contains NAs. The default is set by the na.action setting of \code{options},
 which in turn defaults to \code{na.omit}.}
 
-\item{control}{an optional list of parameters controlling the NPMLE estimation}
+\item{verbose}{logical value, if TRUE then information is displayed during computation}
+
+\item{known_recur}{optional list specifying the known recurrence survival distribution
+function for each subject. It should have two components: \code{S0} - the baseline survival
+function, and \code{coefs} - the coefficients of the recurrence model specified in \code{formula}}
 }
 \value{
 a list with components \code{fit} - an object of class \link[stats]{stepfun} with the

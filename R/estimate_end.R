@@ -29,7 +29,7 @@
 estimate_end <- function(formula,
                     method=c("naive", "threshold","quantile", "NPMLE"),
                     threshold = 0, quantile=0.95, data, subset, na.action,
-                    verbose=FALSE, known_recur=NULL)){
+                    verbose=FALSE, known_recur=NULL){
   method <- match.arg(method)
 
   # based on reda::rateReg
@@ -133,6 +133,7 @@ estimate_end <- function(formula,
     if (!is.null(known_recur)){
       mod_npkm <- npkm_known_S(trail_dat = trailDat, formula = formula,
                                S0 = known_recur$S0, coefs = known_recur$coefs)
+      mod <- NULL
     } else {
       # ignore warning that is due to approx zero estimate for frailty variance
       suppressWarnings(

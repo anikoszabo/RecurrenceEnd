@@ -58,7 +58,7 @@ npkm_from_mod <- function(trail_dat, cox_model){
   mod_npkm
 }
 
-npkm_known_S <- function(npkm_known_S(trail_dat, formula, S0, coefs)){
+npkm_known_S <- function(trail_dat, formula, S0, coefs){
   # compute linear predictor for trailing gap
   # Create  model matrix
   X <- stats::model.matrix(formula[-2], data = trail_dat)
