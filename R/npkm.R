@@ -38,6 +38,7 @@ npkm_from_mod <- function(trail_dat, cox_model){
 
   # linear predictor
   beta <- cox_model$coefficients
+  beta[is.na(beta)] <- 0 # protect from weird NA coefficient from coxph
   if (is.null(beta)){  # if no predictors
     lin_pred <- random_effects
   } else {
