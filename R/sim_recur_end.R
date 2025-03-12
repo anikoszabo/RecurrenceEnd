@@ -90,7 +90,7 @@ sim_recur_end <- function(n, lambda_d, lambda_r, sigma2,
       disease_onset = disease_onset[i],
       C = C[i],
       xi = xi[i],
-      Z = Z[i,]
+      Z = Z[i, ,drop=FALSE]
     )
     data_list <- c(data_list, list(subj_data))
   }
