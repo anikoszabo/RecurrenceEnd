@@ -1,11 +1,12 @@
 Package: RecurrenceEnd
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Estimate the Distribution of the Unobserved End of a Recurrent Event Process
 Version: 0.1.0
 Author: Who wrote it
 Maintainer: The package maintainer <yourself@somewhere.net>
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Description: The package implements several methods for estimating the
+    distribution of the unobservable terminating event of a recurrent
+    event process.
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
@@ -16,3 +17,8 @@ Imports:
 RoxygenNote: 7.2.3
 URL: https://github.com/anikoszabo/RecurrenceEnd
 BugReports: https://github.com/anikoszabo/RecurrenceEnd/issues
+Authors@R: c(
+    person("Aniko", "Szabo", , "aszabo@mcw.edu", role = c("aut", "cre")),
+    person("Juntian", "Wang", , "juwang@mcw.edu", role = "aut"),
+    person("Duo", "Yu", , "duoyu@mcw.edu", role = "aut")
+  )

@@ -14,6 +14,7 @@
 #' follow-up time \code{C_min}
 #' @param C_min numeric value >=0, minimal follow-up time without censoring
 #' @param ... optional parameters passed to \code{cov_fun}
+#' @importFrom stats rexp rgamma runif uniroot
 
 sim_recur_end <- function(n, lambda_d, lambda_r, sigma2,
                           cov_fun, beta, lambda_c, C_min=0, ...) {
@@ -28,7 +29,7 @@ sim_recur_end <- function(n, lambda_d, lambda_r, sigma2,
    if (sigma2 == 0) {
     xi <- rep(1,n)
   } else {
-    xi <- rgamma(n, shape = 1/sigma2, scale = sigma2)
+    xi <- stats::rgamma(n, shape = 1/sigma2, scale = sigma2)
   }
   # ensure that recurrent event rate is always less than terminal event rate
   xi <- pmax(xi, min(lambda_d/(lambda_r*exp(linpred))))
@@ -36,16 +37,16 @@ sim_recur_end <- function(n, lambda_d, lambda_r, sigma2,
   r <- xi * lambda_r * exp(linpred)
 
   # generate first event times
-  tau1 <- rexp(n, rate = r)
+  tau1 <- stats::rexp(n, rate = r)
   # generate terminating event, conditional on being larger than first event
-  y <- runif(n, min = 0, max = 1)
+  y <- stats::runif(n, min = 0, max = 1)
   upper_lim <- -log(1-y)/lambda_d
   # inverse CDF solver
   f.t.tilde <- function(i) {
       if (y[i] <= lambda_d/r[i]) {
         return(0)
       } else {
-        res <- uniroot(
+        res <- stats::uniroot(
           function(t) {
             (1 - exp(-lambda_d * t)) / (1 - exp(-r[i] * t)) - y[i]
           },  c(10^-7, upper_lim[i]), extendInt = "upX"
@@ -61,7 +62,7 @@ sim_recur_end <- function(n, lambda_d, lambda_r, sigma2,
   disease_onset <- pmax(tau1, tau_tilde)
 
   # Generate censoring times
-  C = C_min + rexp(n, rate = lambda_c)
+  C = C_min + stats::rexp(n, rate = lambda_c)
   #C_tilde = C_min + rexp(n, rate = lambda_c)
   #C <- pmax(tau1, C_tilde)
 
@@ -73,7 +74,7 @@ sim_recur_end <- function(n, lambda_d, lambda_r, sigma2,
     event_times <- c()
     while (current_time <= min(disease_onset[i], C[i])){
       event_times <- c(event_times, current_time)
-      current_time <- current_time + rexp(1, rate=r[i])
+      current_time <- current_time + stats::rexp(1, rate=r[i])
     }
     # create recurrent events for this subject
     # last event is censoring

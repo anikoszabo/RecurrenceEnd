@@ -6,11 +6,17 @@ use_package("survival")
 use_build_ignore("RE_develop.R")
 use_gpl3_license()
 use_github()
+desc::desc_add_author("Aniko", "Szabo", "aszabo@mcw.edu", role=c("aut","cre"))
+desc::desc_add_author("Juntian", "Wang", "juwang@mcw.edu", role=c("aut"))
+desc::desc_add_author("Duo", "Yu", "duoyu@mcw.edu", role=c("aut"))
+
+use_readme_rmd()
 
 re <- as.package(".")
 load_all(re)
 document(re)
 
+build_readme()
 check(re)
 
 
