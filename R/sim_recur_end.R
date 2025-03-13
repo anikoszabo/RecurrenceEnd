@@ -60,16 +60,10 @@ sim_recur_end <- function(n, lambda_d, lambda_r, sigma2,
   }
   disease_onset <- pmax(tau1, tau_tilde)
 
-  # Generate censoring times, without censoring first recurrent event
-  C_tilde = C_min + rexp(n, rate = lambda_c)
-  C <- pmax(tau1, C_tilde)
-
-
-  # Initialize an empty dataframe to store the observed time and status for each patient
- # observed_data <- data.frame(patient_id = integer(), time = numeric(),
-#                              indicator = integer(), Z = integer(),
-#                              minimum = numeric(), disease_onset = numeric(),
-#                              C = numeric(), xi = numeric())
+  # Generate censoring times
+  C = C_min + rexp(n, rate = lambda_c)
+  #C_tilde = C_min + rexp(n, rate = lambda_c)
+  #C <- pmax(tau1, C_tilde)
 
   data_list <- list()
   # Loop over subjects to generate recurrent and terminal events
@@ -85,6 +79,7 @@ sim_recur_end <- function(n, lambda_d, lambda_r, sigma2,
     # last event is censoring
     subj_data <- data.frame(
       patient.id = i,
+      nevents = length(event_times),
       time = c(event_times, C[i]),
       indicator = c(rep(1, length(event_times)), 0),
       disease_onset = disease_onset[i],
