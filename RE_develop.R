@@ -1,8 +1,8 @@
 library(devtools)
 
 use_package("nspmix")
-use_package("reda")
-use_package("survival")
+use_package("reda", type = "Depends")
+use_package("survival", type = "Depends")
 use_build_ignore("RE_develop.R")
 use_gpl3_license()
 use_github()
@@ -20,9 +20,6 @@ build_readme()
 check(re)
 
 
-library(reda)
-library(survival)
-#library(nspmix)
 set.seed(2453)
 aa <- sim_recur_end(n=1000, lambda_d = 0.2, lambda_r = 1, sigma2=0.1,
                    cov_fun = function(n)cbind(rbinom(n, size=1, prob = 0.5), rnorm(n)),

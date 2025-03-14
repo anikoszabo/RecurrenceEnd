@@ -86,17 +86,18 @@ npkm_known_S <- function(trail_dat, formula, S0, coefs, weights = NULL){
   mod_npkm
 }
 
-#' @export
+#' @exportS3Method nspmix::length npkm
 length.npkm <- function(x) length(x$time)
-#' @export
+
+#' @exportS3Method nspmix::weight npkm
 weight.npkm <- function(x, beta) x$weights
 
 
 # lower and upper bounds on the support points
-#' @export
+#' @exportS3Method nspmix::suppspace npkm
 suppspace.npkm = function(x, beta) c(0, Inf)
 
-#' @export
+#' @exportS3Method nspmix::gridpoints npkm
 gridpoints.npkm = function(x, beta, grid=100) {
   tms <- x$time
   pp = unique(quantile(tms, seq(0, 1, len=grid),
@@ -106,7 +107,7 @@ gridpoints.npkm = function(x, beta, grid=100) {
 
 
 # mix - discrete density on
-#' @export
+#' @exportS3Method nspmix::initial npkm
 initial.npkm = function(x, beta=NULL, mix=NULL, kmax=NULL) {
   tms <- x$time
   if(is.null(mix) || is.null(mix$pt)) {
@@ -128,7 +129,7 @@ initial.npkm = function(x, beta=NULL, mix=NULL, kmax=NULL) {
 }
 
 
-#' @export
+#' @exportS3Method nspmix::logd npkm
 logd.npkm = function(x, beta, pt, which=c(1,0,0)) {
   dl = vector("list", 3)
   names(dl) = c("ld","db","dt")

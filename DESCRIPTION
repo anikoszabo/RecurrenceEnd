@@ -10,10 +10,6 @@ Description: The package implements several methods for estimating the
 License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
-Imports: 
-    nspmix,
-    reda,
-    survival
 RoxygenNote: 7.2.3
 URL: https://github.com/anikoszabo/RecurrenceEnd
 BugReports: https://github.com/anikoszabo/RecurrenceEnd/issues
@@ -22,3 +18,8 @@ Authors@R: c(
     person("Juntian", "Wang", , "juwang@mcw.edu", role = "aut"),
     person("Duo", "Yu", , "duoyu@mcw.edu", role = "aut")
   )
+Depends: 
+    reda,
+    survival
+Imports: 
+    nspmix
