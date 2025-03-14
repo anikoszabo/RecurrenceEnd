@@ -18,18 +18,20 @@
 #' @param known_recur optional list specifying the known recurrence survival distribution
 #' function for each subject. It should have two components: \code{S0} - the baseline survival
 #' function, and \code{coefs} - the coefficients of the recurrence model specified in \code{formula}
+#' @param IPSW logical, indicating whether inverse-probability of selection weights based on
+#' no censoring before first event time should be used
 #' @return a list with components \code{fit} - an object of class \link[stats]{stepfun} with the
 #' estimated survival distribution, \code{method} - the method used, and additional
 #' information based on the method used
 #' @export
 #' @importFrom stats stepfun model.frame model.extract update quantile
-#' @importFrom survival survfit coxph
+#' @importFrom survival survfit coxph Surv
 
 
 estimate_end <- function(formula,
                     method=c("naive", "threshold","quantile", "NPMLE"),
                     threshold = 0, quantile=0.95, data, subset, na.action,
-                    verbose=FALSE, known_recur=NULL){
+                    verbose=FALSE, known_recur=NULL, IPSW = FALSE){
   method <- match.arg(method)
 
   # based on reda::rateReg
@@ -73,19 +75,37 @@ estimate_end <- function(formula,
   # create indicators for largest event time, latest time-point (censoring time)
   # allow for no-event intervals within the recurrent event process
   events <- Dat$event==1
+  nevents <- tapply(events, Dat["id"], sum)
+  if (any(nevents == 0)){
+    stop("All subjects must to have at least one observed recurrent event")
+  }
   last_event_idx <- tapply(seq_len(nrow(Dat)), Dat["id"],
                            function(x)max(x[events[x]]))
   last_event <- Dat$time2[last_event_idx]
-  last_time <- Dat$time2[resp@last_idx]
+  last_time <- Dat$time2[resp@last_idx]  # censoring times
+
+  if (IPSW){
+    first_event_idx <- tapply(seq_len(nrow(Dat)), Dat["id"],
+                             function(x)min(x[events[x]]))
+    first_event <- Dat$time2[first_event_idx]
+    G_cens <- function(t){mean(t <= last_time)}
+    p_select <- sapply(first_event, G_cens)
+    weights <- 1/p_select
+    Dat$.weights <- weights[Dat[["id"]]]
+  } else {
+    weights <- NULL
+    Dat$.weights <- 1
+  }
 
   if (method == "naive"){
-    res <- survival::survfit(Surv(last_event) ~ 1)
+    res <- survival::survfit(survival::Surv(last_event) ~ 1, weights = weights)
     return(list(fit = survfit_to_survfun(res),
                 method = method))
   }
   if (method == "threshold"){
     if (!isTRUE(threshold >= 0)) stop("'threshold' should be a positive number")
-    res <- survival::survfit(Surv(last_event, last_time-last_event >= threshold ) ~ 1)
+    res <- survival::survfit(survival::Surv(last_event, last_time-last_event >= threshold ) ~ 1,
+                             weights = weights)
     return(list(fit = survfit_to_survfun(res),
                 method = method,
                 threshold = threshold))
@@ -94,9 +114,12 @@ estimate_end <- function(formula,
     if (!isTRUE(quantile > 0 & quantile < 1))
       stop("'quantile' should be between 0 and 1 (exclusive)")
     # estimate gap-time distribution to recurrent event part
-    gap_fit <- survival::survfit(Surv(time2 - time1, event) ~ 1, data = Dat[-resp@last_idx,])
+    gap_fit <- survival::survfit(survival::Surv(time2 - time1, event) ~ 1,
+                                 data = Dat[-resp@last_idx,],
+                                 weights=Dat[-resp@last_idx,]$.weights)
     thresh <- stats::quantile(gap_fit, probs = quantile, conf.int = FALSE)
-    res <- survival::survfit(Surv(last_event, last_time-last_event >= thresh ) ~ 1)
+    res <- survival::survfit(survival::Surv(last_event, last_time-last_event >= thresh ) ~ 1,
+                             weights = weights)
 
     return(list(fit = survfit_to_survfun(res),
                 method = method,
@@ -127,21 +150,24 @@ estimate_end <- function(formula,
 
   if (method == "NPMLE"){
     # Fit gap-time model to recurrent event part
-    surv_fla <- stats::update(formula, Surv(time2-time1, event) ~ . + frailty(id))
+    surv_fla <- stats::update(formula, survival::Surv(time2-time1, event) ~ . + frailty(id))
     environment(surv_fla) <- list2env(Dat)
 
     if (!is.null(known_recur)){
       mod_npkm <- npkm_known_S(trail_dat = trailDat, formula = formula,
-                               S0 = known_recur$S0, coefs = known_recur$coefs)
+                               S0 = known_recur$S0, coefs = known_recur$coefs,
+                               weights = weights)
       mod <- NULL
     } else {
       # ignore warning that is due to approx zero estimate for frailty variance
       suppressWarnings(
         mod <- survival::coxph(surv_fla, data=Dat[-resp@last_idx,])
+        #mod <- my_coxph(surv_fla, data=Dat[-resp@last_idx,], weights=.weights)
       )
 
       # Create 'npkm' object
-      mod_npkm <- npkm_from_mod(trail_dat = trailDat, cox_model = mod)
+      mod_npkm <- npkm_from_mod(trail_dat = trailDat, cox_model = mod,
+                                weights = weights)
     }
     # fit NPMLE
     npmix_fit <- nspmix::cnm(mod_npkm, init=list(mix=nspmix::disc(mod_npkm$ak)),

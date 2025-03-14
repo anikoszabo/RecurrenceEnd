@@ -6,7 +6,8 @@
 #' @importFrom survival basehaz
 #' @importFrom utils tail
 
-npkm <- function(time, censor, lin_pred, S0){
+#' @export
+npkm <- function(time, censor, lin_pred, S0, weights = NULL){
   if ((length(time) != length(censor)) | length(time) != length(lin_pred)) {
     stop("Arguments should have equal length")
   }
@@ -14,16 +15,23 @@ npkm <- function(time, censor, lin_pred, S0){
     stop("S0 should be a function")
   }
 
+  if (is.null(weights)){
+    weights <- rep(1, length(time))
+  } else {
+    if (length(time) != length(weights)) {
+      stop("Arguments should have equal length")
+    }
+  }
   ak <- sort(unique(time))
 
   res <- list(time = time, censor = censor, lin_pred = lin_pred, S0fun = S0,
-              ak = ak)
+              ak = ak, weights = weights)
 
   class(res) <- "npkm"
   res
 }
 
-npkm_from_mod <- function(trail_dat, cox_model){
+npkm_from_mod <- function(trail_dat, cox_model, weights = NULL){
   # compute baseline hazard and linear predictor for trailing gap
   # Create  model matrix
   fla <- cox_model$formula
@@ -53,12 +61,12 @@ npkm_from_mod <- function(trail_dat, cox_model){
 
   # Create 'npkm' object
   mod_npkm <- npkm(time=trail_dat$time1, censor=trail_dat$time2,
-                   lin_pred=drop(lin_pred), s0_fun)
+                   lin_pred=drop(lin_pred), s0_fun, weights = weights)
 
   mod_npkm
 }
 
-npkm_known_S <- function(trail_dat, formula, S0, coefs){
+npkm_known_S <- function(trail_dat, formula, S0, coefs, weights = NULL){
   # compute linear predictor for trailing gap
   # Create  model matrix
   X <- stats::model.matrix(formula[-2], data = trail_dat)
@@ -73,18 +81,22 @@ npkm_known_S <- function(trail_dat, formula, S0, coefs){
 
   # Create 'npkm' object
   mod_npkm <- npkm(time=trail_dat$time1, censor=trail_dat$time2,
-                   lin_pred=drop(lin_pred), S0)
+                   lin_pred=drop(lin_pred), S0, weights = weights)
 
   mod_npkm
 }
 
+#' @export
 length.npkm <- function(x) length(x$time)
-weight.npkm <- function(x, beta) rep(1, length(x$time))
+#' @export
+weight.npkm <- function(x, beta) x$weights
 
 
 # lower and upper bounds on the support points
+#' @export
 suppspace.npkm = function(x, beta) c(0, Inf)
 
+#' @export
 gridpoints.npkm = function(x, beta, grid=100) {
   tms <- x$time
   pp = unique(quantile(tms, seq(0, 1, len=grid),
@@ -94,6 +106,7 @@ gridpoints.npkm = function(x, beta, grid=100) {
 
 
 # mix - discrete density on
+#' @export
 initial.npkm = function(x, beta=NULL, mix=NULL, kmax=NULL) {
   tms <- x$time
   if(is.null(mix) || is.null(mix$pt)) {
@@ -115,6 +128,7 @@ initial.npkm = function(x, beta=NULL, mix=NULL, kmax=NULL) {
 }
 
 
+#' @export
 logd.npkm = function(x, beta, pt, which=c(1,0,0)) {
   dl = vector("list", 3)
   names(dl) = c("ld","db","dt")

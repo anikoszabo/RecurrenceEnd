@@ -13,7 +13,8 @@ estimate_end(
   subset,
   na.action,
   verbose = FALSE,
-  known_recur = NULL
+  known_recur = NULL,
+  IPSW = FALSE
 )
 }
 \arguments{
@@ -42,6 +43,9 @@ which in turn defaults to \code{na.omit}.}
 \item{known_recur}{optional list specifying the known recurrence survival distribution
 function for each subject. It should have two components: \code{S0} - the baseline survival
 function, and \code{coefs} - the coefficients of the recurrence model specified in \code{formula}}
+
+\item{IPSW}{logical, indicating whether inverse-probability of selection weights based on
+no censoring before first event time should be used}
 }
 \value{
 a list with components \code{fit} - an object of class \link[stats]{stepfun} with the

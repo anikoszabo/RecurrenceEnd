@@ -15,6 +15,7 @@
 #' @param C_min numeric value >=0, minimal follow-up time without censoring
 #' @param ... optional parameters passed to \code{cov_fun}
 #' @importFrom stats rexp rgamma runif uniroot
+#' @export
 
 sim_recur_end <- function(n, lambda_d, lambda_r, sigma2,
                           cov_fun, beta, lambda_c, C_min=0, ...) {
