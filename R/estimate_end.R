@@ -104,14 +104,14 @@ estimate_end <- function(formula,
 
   if (method == "naive"){
     res <- survival::survfit(survival::Surv(last_event) ~ 1, weights = weights,
-                             conf.level = conf.level)
+                             conf.int = conf.level)
     return(list(fit = survfit_to_survfun(res),
                 method = method))
   }
   if (method == "threshold"){
     if (!isTRUE(threshold >= 0)) stop("'threshold' should be a positive number")
     res <- survival::survfit(survival::Surv(last_event, last_time-last_event >= threshold ) ~ 1,
-                             weights = weights,  conf.level = conf.level)
+                             weights = weights,  conf.int = conf.level)
     return(list(fit = survfit_to_survfun(res),
                 method = method,
                 threshold = threshold))
@@ -125,7 +125,7 @@ estimate_end <- function(formula,
                                  weights=Dat[-resp@last_idx,]$.weights)
     thresh <- stats::quantile(gap_fit, probs = quantile, conf.int = FALSE)
     res <- survival::survfit(survival::Surv(last_event, last_time-last_event >= thresh ) ~ 1,
-                             weights = weights,  conf.level = conf.level)
+                             weights = weights,  conf.int = conf.level)
 
     return(list(fit = survfit_to_survfun(res),
                 method = method,

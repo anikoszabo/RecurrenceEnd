@@ -5,11 +5,7 @@ set_NA_to <- function(x, value=0){
 }
 
 survfit_to_survfun <- function(sf){
-  res <- stepfun(sf$time, c(1, sf$surv))
-  res$lower <- sf$lower
-  res$upper <- sf$upper
-  class(res) <- c("survfun", class(res))
-  res
+  stepfun(sf$time, c(1, sf$surv))
 }
 
 
