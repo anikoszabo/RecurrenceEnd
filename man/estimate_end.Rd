@@ -14,7 +14,10 @@ estimate_end(
   na.action,
   verbose = FALSE,
   known_recur = NULL,
-  IPSW = FALSE
+  IPSW = FALSE,
+  bootCI = FALSE,
+  conf.level = 0.95,
+  bootB = 100
 )
 }
 \arguments{
@@ -46,6 +49,13 @@ function, and \code{coefs} - the coefficients of the recurrence model specified 
 
 \item{IPSW}{logical, indicating whether inverse-probability of selection weights based on
 no censoring before first event time should be used}
+
+\item{bootCI}{logical, indicating whether pointwise bootstrap confidence intervals should
+be computed. Use carefully for the "NPMLE" method, as it may take long.}
+
+\item{conf.level}{numeric, confidence level for pointwise confidence interval}
+
+\item{bootB}{integer, number of bootstrap replicates}
 }
 \value{
 a list with components \code{fit} - an object of class \link[stats]{stepfun} with the
