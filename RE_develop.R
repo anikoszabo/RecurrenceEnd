@@ -21,9 +21,13 @@ check(re)
 
 
 set.seed(2453)
-aa <- sim_recur_end(n=1000, lambda_d = 0.2, lambda_r = 1, sigma2=0.1,
+ld0 <- 0.2
+lr0 <- 1
+ss <- 0.25
+b0 <- c(1,-1)
+aa <- sim_recur_end(n=1000, lambda = ld0, lambda_r = lr0, sigma2=ss,
                    cov_fun = function(n)cbind(rbinom(n, size=1, prob = 0.5), rnorm(n)),
-                   beta = c(1,-1), lambda_c = 0.2, C_min = 1)
+                   beta = b0, lambda_c = 0.2, C_min = 0)
 a <- subset(aa, nevents > 0)
 res_n <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
                      method="naive", data=a)
@@ -39,8 +43,8 @@ res_npb <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 +
                        method="NPMLE", data=a, IPSW=TRUE)
 res_np2 <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2 + log(xi),
                        method="NPMLE", data=a,
-                       known_recur = list(S0 = function(x)pexp(x, rate=1, lower=FALSE),
-                                          coefs = c(1,-1,1)), IPSW=FALSE)
+                       known_recur = list(S0 = function(x)pexp(x, rate=lr0, lower=FALSE),
+                                          coefs = c(b0,1)), IPSW=FALSE)
 res_np2b <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2 + log(xi),
                         method="NPMLE", data=a,
                         known_recur = list(S0 = function(x)pexp(x, rate=1, lower=FALSE),
@@ -51,7 +55,7 @@ a0$obs <- pmin(a0$disease_onset, a0$C)
 a0$delta <- ifelse(a0$disease_onset <= a0$C, 1, 0)
 km <- survfit(Surv(obs, delta) ~ 1, data=a0)
 
-curve(pexp(x, rate=0.2, lower=FALSE), from=0, to=max(a$time[a$indicator==1]),
+curve(pexp(x, rate=ld0, lower=FALSE), from=0, to=max(a$time[a$indicator==1]),
       ylim=c(0,1), ylab="")
 lines(res_n$fit, do.points=FALSE, col="red")
 lines(res_q$fit, do.points=FALSE, col="pink")

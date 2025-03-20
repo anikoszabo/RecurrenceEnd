@@ -20,6 +20,10 @@
 #' function, and \code{coefs} - the coefficients of the recurrence model specified in \code{formula}
 #' @param IPSW logical, indicating whether inverse-probability of selection weights based on
 #' no censoring before first event time should be used
+#' @param bootCI logical, indicating whether pointwise bootstrap confidence intervals should
+#' be computed. Use carefully for the "NPMLE" method, as it may take long.
+#' @param conf.level numeric, confidence level for pointwise confidence interval
+#' @param bootB integer, number of bootstrap replicates
 #' @return a list with components \code{fit} - an object of class \link[stats]{stepfun} with the
 #' estimated survival distribution, \code{method} - the method used, and additional
 #' information based on the method used
@@ -31,7 +35,8 @@
 estimate_end <- function(formula,
                     method=c("naive", "threshold","quantile", "NPMLE"),
                     threshold = 0, quantile=0.95, data, subset, na.action,
-                    verbose=FALSE, known_recur=NULL, IPSW = FALSE){
+                    verbose=FALSE, known_recur=NULL, IPSW = FALSE,
+                    bootCI = FALSE, conf.level = 0.95, bootB = 100){
   method <- match.arg(method)
 
   # based on reda::rateReg
@@ -98,14 +103,15 @@ estimate_end <- function(formula,
   }
 
   if (method == "naive"){
-    res <- survival::survfit(survival::Surv(last_event) ~ 1, weights = weights)
+    res <- survival::survfit(survival::Surv(last_event) ~ 1, weights = weights,
+                             conf.level = conf.level)
     return(list(fit = survfit_to_survfun(res),
                 method = method))
   }
   if (method == "threshold"){
     if (!isTRUE(threshold >= 0)) stop("'threshold' should be a positive number")
     res <- survival::survfit(survival::Surv(last_event, last_time-last_event >= threshold ) ~ 1,
-                             weights = weights)
+                             weights = weights,  conf.level = conf.level)
     return(list(fit = survfit_to_survfun(res),
                 method = method,
                 threshold = threshold))
@@ -119,7 +125,7 @@ estimate_end <- function(formula,
                                  weights=Dat[-resp@last_idx,]$.weights)
     thresh <- stats::quantile(gap_fit, probs = quantile, conf.int = FALSE)
     res <- survival::survfit(survival::Surv(last_event, last_time-last_event >= thresh ) ~ 1,
-                             weights = weights)
+                             weights = weights,  conf.level = conf.level)
 
     return(list(fit = survfit_to_survfun(res),
                 method = method,
