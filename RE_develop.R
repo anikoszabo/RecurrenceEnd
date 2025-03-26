@@ -21,13 +21,13 @@ check(re)
 
 
 set.seed(2453)
-ld0 <- 0.2
-lr0 <- 1
-ss <- 0.25
-b0 <- c(1,-1)
-aa <- sim_recur_end(n=1000, lambda = ld0, lambda_r = lr0, sigma2=ss,
+ld0 <- 1
+lr0 <- 5
+ss <- 0.1
+b0 <- c(0,0)
+aa <- sim_recur_end(n=300, lambda = ld0, lambda_r = lr0, sigma2=ss,
                    cov_fun = function(n)cbind(rbinom(n, size=1, prob = 0.5), rnorm(n)),
-                   beta = b0, lambda_c = 0.2, C_min = 0)
+                   beta = b0, lambda_c = 1, C_min = 1)
 a <- subset(aa, nevents > 0)
 res_n <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
                      method="naive", data=a)
@@ -67,3 +67,20 @@ lines(res_np2$fit, do.points=FALSE, col="green")
 lines(res_np2b$fit, do.points=FALSE, col="green", lty=2)
 lines(km, conf.int=FALSE, col="brown")
 #legend("topright", legend=c("Naive", "NPMLE", "NPMLE_known"), col=2:4, lty=1)
+
+# bootstrap
+res_qboot <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
+                       method="quantile", data=a, quantile=0.99, bootCI = TRUE,
+                       bootB = 100)
+res_npboot <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2,
+                       method="NPMLE", data=a, bootCI = TRUE,
+                       bootB = 100)
+curve(pexp(x, rate=ld0, lower=FALSE), from=0, to=max(a$time[a$indicator==1]),
+      ylim=c(0,1), ylab="")
+lines(res_npboot$fit, do.points=FALSE, col="blue")
+lines(res_npboot$ci$lower, do.points=FALSE, col="blue", lty=2)
+lines(res_npboot$ci$upper, do.points=FALSE, col="blue", lty=2)
+lines(res_qboot$fit, do.points=FALSE, col="pink")
+lines(res_qboot$ci$lower, do.points=FALSE, col="pink", lty=2)
+lines(res_qboot$ci$upper, do.points=FALSE, col="pink", lty=2)
+

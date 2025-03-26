@@ -31,7 +31,6 @@
 #' @importFrom stats stepfun model.frame model.extract update quantile
 #' @importFrom survival survfit coxph Surv
 
-
 estimate_end <- function(formula,
                     method=c("naive", "threshold","quantile", "NPMLE"),
                     threshold = 0, quantile=0.95, data, subset, na.action,
@@ -105,18 +104,18 @@ estimate_end <- function(formula,
   if (method == "naive"){
     res <- survival::survfit(survival::Surv(last_event) ~ 1, weights = weights,
                              conf.int = conf.level)
-    return(list(fit = survfit_to_survfun(res),
+    output <- list(fit = survfit_to_survfun(res),
                 ci = survfitCI_to_survfun(res),
-                method = method))
+                method = method)
   }
   if (method == "threshold"){
     if (!isTRUE(threshold >= 0)) stop("'threshold' should be a positive number")
     res <- survival::survfit(survival::Surv(last_event, last_time-last_event >= threshold ) ~ 1,
                              weights = weights,  conf.int = conf.level)
-    return(list(fit = survfit_to_survfun(res),
+    output <- list(fit = survfit_to_survfun(res),
                 ci = survfitCI_to_survfun(res),
                 method = method,
-                threshold = threshold))
+                threshold = threshold)
   }
   if (method == "quantile"){
     if (!isTRUE(quantile > 0 & quantile < 1))
@@ -129,35 +128,35 @@ estimate_end <- function(formula,
     res <- survival::survfit(survival::Surv(last_event, last_time-last_event >= thresh ) ~ 1,
                              weights = weights,  conf.int = conf.level)
 
-    return(list(fit = survfit_to_survfun(res),
+    output <- list(fit = survfit_to_survfun(res),
                 ci = survfitCI_to_survfun(res),
                 method = method,
                 quantile = quantile,
-                threshold = thresh))
+                threshold = thresh)
   }
-
-  # add predictors to Dat - everything on the RHS of 'formula'
-  covars <- all.vars(formula[-2])
-  if (any(names(Dat) %in% covars))
-    stop(paste("Please avoid using '", toString(names(Dat)), "' as predictor names in 'formula'"))
-
-  if (length(na.action)>0 & inherits(na.action, "omit")){
-    Dat <- cbind(Dat, data[-na.action, ][ord,covars,drop=FALSE])
-  } else {
-    Dat <- cbind(Dat, data[ord,covars,drop=FALSE])
-  }
-
-  # check for only one 'trailing' event
-  next_to_last <- (resp@last_idx - 1)[resp@last_idx > resp@first_idx]
-  if (!all(events[next_to_last]))
-    stop("There should be only one censored interval after the last event")
-
-  tmax_unique <- sort(unique(last_event))
-
-  # data from 'trailing gaps'
-  trailDat <- Dat[resp@last_idx,]
 
   if (method == "NPMLE"){
+    # add predictors to Dat - everything on the RHS of 'formula'
+    covars <- all.vars(formula[-2])
+    if (any(names(Dat) %in% covars))
+      stop(paste("Please avoid using '", toString(names(Dat)), "' as predictor names in 'formula'"))
+
+    if (length(na.action)>0 & inherits(na.action, "omit")){
+      Dat <- cbind(Dat, data[-na.action, ][ord,covars,drop=FALSE])
+    } else {
+     Dat <- cbind(Dat, data[ord,covars,drop=FALSE])
+    }
+
+   # check for only one 'trailing' event
+    next_to_last <- (resp@last_idx - 1)[resp@last_idx > resp@first_idx]
+    if (!all(events[next_to_last]))
+      stop("There should be only one censored interval after the last event")
+
+    tmax_unique <- sort(unique(last_event))
+
+    # data from 'trailing gaps'
+    trailDat <- Dat[resp@last_idx,]
+
     # Fit gap-time model to recurrent event part
     surv_fla <- stats::update(formula, survival::Surv(time2-time1, event) ~ . + frailty(id))
     environment(surv_fla) <- list2env(Dat)
@@ -183,12 +182,83 @@ estimate_end <- function(formula,
                      model="proportions", plot="null", verbose=verbose)
 
     res <- stats::stepfun(npmix_fit$mix$pt, 1-cumsum(c(0, npmix_fit$mix$pr)))
-    return(list(fit = res,
+    output <- list(fit = res,
                 method = method,
-                 model = mod))
+                 model = mod)
+  }
+
+  if (bootCI){
+    if (method %in% c("threshold", "naive", "quantile")){
+      thresh <- switch(method, naive = 0, threshold = threshold,
+                       quantile = NA)
+      boot_times <- res$time # step-points of original fit
+      bootres <- list()
+      for (b in 1:bootB){
+        idx <- sample.int(length(last_event), replace = TRUE)
+        if (method == "quantile"){
+          last_event_id <- Dat$id[last_event_idx]
+          Dat_events_b <- merge(Dat[-resp@last_idx,],
+                                data.frame(id = last_event_id[idx]))
+          # re-estimate quantile
+          gap_fit_b <- survival::survfit(survival::Surv(time2 - time1, event) ~ 1,
+                                     data = Dat_events_b,
+                                     weights=Dat_events_b$.weights)
+          thresh <- stats::quantile(gap_fit_b, probs = quantile, conf.int = FALSE)
+        }
+
+        res_b <- survival::survfit(
+          survival::Surv(last_event[idx], last_time[idx]-last_event[idx] >= thresh ) ~ 1,
+                         weights = weights[idx],  conf.int = conf.level)
+
+        bootres <- c(bootres, list(survfit_to_survfun(res_b)))
+      }
+    }
+    if (method == "NPMLE"){
+      boot_times <- npmix_fit$mix$pt # step-points of original fit
+      Dat_events <- Dat[-resp@last_idx,]
+      bootres <- list()
+      for (b in 1:bootB){
+        idx <- sample.int(length(last_event), replace = TRUE)
+        # select bootstrapped subjects from Dat_events & trailDat, assigning new IDs
+        last_event_id <- Dat$id[last_event_idx]
+        newid <- seq_along(last_event_id)
+        id_map <- data.frame(.origid = last_event_id[idx], id = newid)
+        Dat_events_b <- Dat_events
+        names(Dat_events_b)[names(Dat_events_b) == "id"] <- ".origid"
+        Dat_events_b <- merge(Dat_events_b, id_map, by = ".origid", all.x = FALSE, all.y = TRUE)
+        trailDat_b <- trailDat
+        names(trailDat_b)[names(trailDat_b) == "id"] <- ".origid"
+        trailDat_b <- merge(trailDat_b, id_map, by = ".origid", all.x = FALSE, all.y = TRUE)
+
+        if (!is.null(known_recur)){
+          mod_npkm_b <- npkm_known_S(trail_dat = trailDat_b, formula = formula,
+                                   S0 = known_recur$S0, coefs = known_recur$coefs,
+                                   weights = weights[idx])
+        } else {
+          # ignore warning that is due to approx zero estimate for frailty variance
+          environment(surv_fla) <- list2env(Dat_events_b)
+          suppressWarnings(
+            mod_b <- survival::coxph(surv_fla, data=Dat_events_b)
+          )
+
+          # Create 'npkm' object
+          mod_npkm_b <- npkm_from_mod(trail_dat = trailDat_b, cox_model = mod_b,
+                                      weights = weights[idx])
+        }
+        # fit NPMLE
+        npmix_fit_b <- nspmix::cnm(mod_npkm_b, init=list(mix=nspmix::disc(mod_npkm_b$ak)),
+                                 model="proportions", plot="null", verbose=verbose)
+
+        res_b <- stats::stepfun(npmix_fit_b$mix$pt, 1-cumsum(c(0, npmix_fit_b$mix$pr)))
+        bootres <- c(bootres, list(res_b))
+      }
     }
 
+    boot_ci <- get_limits(bootres, times = boot_times, conf.level = conf.level)
+    output$ci <- boot_ci
+  }
 
+  output
 }
 
 
