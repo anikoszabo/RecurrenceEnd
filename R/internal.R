@@ -15,6 +15,7 @@ survfitCI_to_survfun <- function(sf){
 }
 
 # combine list of stepfuns into functions with pointwise CLs
+#' @importFrom stats isoreg
 get_limits <- function(funlist, times, conf.level){
   lwr <- numeric(length(times))
   upr <- numeric(length(times))
@@ -25,8 +26,19 @@ get_limits <- function(funlist, times, conf.level){
     lwr[idx] <- qs[1]
     upr[idx] <- qs[2]
   }
-  list(lower = stepfun(times, c(1, lwr)),
-       upper = stepfun(times, c(1, upr)))
+  lwr <- c(1, lwr)
+  upr <- c(1, upr)
+  # ensure limits are non-increasing
+  if (any(diff(lwr) > 0)) {
+    isolwr <- isoreg(times, -lwr)
+    lwr <- -isolwr$y
+  }
+  if (any(diff(upr) > 0)) {
+    isoupr <- isoreg(times, -upr)
+    upr <- -isoupr$y
+  }
+  list(lower = stepfun(times, lwr),
+       upper = stepfun(times, upr))
 
 }
 

@@ -30,6 +30,7 @@
 #' @export
 #' @importFrom stats stepfun model.frame model.extract update quantile
 #' @importFrom survival survfit coxph Surv
+#' @importFrom reda is.Recur check_Recur Recur
 
 estimate_end <- function(formula,
                     method=c("naive", "threshold","quantile", "NPMLE"),
@@ -258,6 +259,7 @@ estimate_end <- function(formula,
     output$ci <- boot_ci
   }
 
+  class(output) <- c(class(output), "survfun")
   output
 }
 
