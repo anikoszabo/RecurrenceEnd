@@ -1,9 +1,7 @@
 Package: RecurrenceEnd
 Type: Package
 Title: Estimate the Distribution of the Unobserved End of a Recurrent Event Process
-Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
+Version: 0.2.0
 Description: The package implements several methods for estimating the
     distribution of the unobservable terminating event of a recurrent
     event process.

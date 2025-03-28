@@ -6,7 +6,6 @@
 #' @importFrom survival basehaz
 #' @importFrom utils tail
 
-#' @export
 npkm <- function(time, censor, lin_pred, S0, weights = NULL){
   if ((length(time) != length(censor)) | length(time) != length(lin_pred)) {
     stop("Arguments should have equal length")
