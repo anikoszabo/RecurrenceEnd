@@ -24,9 +24,7 @@
 #' be computed. Use carefully for the "NPMLE" method, as it may take long.
 #' @param conf.level numeric, confidence level for pointwise confidence interval
 #' @param bootB integer, number of bootstrap replicates
-#' @return a list with components \code{fit} - an object of class \link[stats]{stepfun} with the
-#' estimated survival distribution, \code{method} - the method used, and additional
-#' information based on the method used
+#' @return an object of class \code{\link{survfun}} with the estimated survival distribution
 #' @export
 #' @importFrom stats stepfun model.frame model.extract update quantile
 #' @importFrom survival survfit coxph Surv
