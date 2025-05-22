@@ -12,6 +12,7 @@ estimate_end(
   data,
   subset,
   na.action,
+  estimand = c("end", "last_event"),
   verbose = FALSE,
   known_recur = NULL,
   IPSW = FALSE,
@@ -41,6 +42,10 @@ quantile used for the "quantile" method.}
 contains NAs. The default is set by the na.action setting of \code{options},
 which in turn defaults to \code{na.omit}.}
 
+\item{estimand}{character, indicating whether the distribution of the unobserved ending
+event should be estimated ('end'), or the distribution of the last recurrent event
+before the ending event should be estimated ('last_event')}
+
 \item{verbose}{logical value, if TRUE then information is displayed during computation}
 
 \item{known_recur}{optional list specifying the known recurrence survival distribution
@@ -58,9 +63,7 @@ be computed. Use carefully for the "NPMLE" method, as it may take long.}
 \item{bootB}{integer, number of bootstrap replicates}
 }
 \value{
-a list with components \code{fit} - an object of class \link[stats]{stepfun} with the
-estimated survival distribution, \code{method} - the method used, and additional
-information based on the method used
+an object of class \code{\link{survfun}} with the estimated survival distribution
 }
 \description{
 Estimate the distribution of the ending event of a recurrent event process
