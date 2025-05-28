@@ -6,7 +6,7 @@
 #' @importFrom survival basehaz
 #' @importFrom utils tail
 
-npkm <- function(time, censor, lin_pred, S0, weights = NULL){
+npkm <- function(time, censor, lin_pred, S0, restrict = FALSE, weights = NULL){
   if ((length(time) != length(censor)) | length(time) != length(lin_pred)) {
     stop("Arguments should have equal length")
   }
@@ -21,16 +21,16 @@ npkm <- function(time, censor, lin_pred, S0, weights = NULL){
       stop("Arguments should have equal length")
     }
   }
-  ak <- sort(unique(time))
+  ak <- if (restrict) {sort(unique(c(time, censor)))} else {sort(unique(time))}
 
   res <- list(time = time, censor = censor, lin_pred = lin_pred, S0fun = S0,
-              ak = ak, weights = weights)
+              ak = ak, restrict=restrict, weights = weights)
 
   class(res) <- "npkm"
   res
 }
 
-npkm_from_mod <- function(trail_dat, cox_model, weights = NULL){
+npkm_from_mod <- function(trail_dat, cox_model, restrict = FALSE, weights = NULL){
   # compute baseline hazard and linear predictor for trailing gap
   # Create  model matrix
   fla <- cox_model$formula
@@ -60,12 +60,13 @@ npkm_from_mod <- function(trail_dat, cox_model, weights = NULL){
 
   # Create 'npkm' object
   mod_npkm <- npkm(time=trail_dat$time1, censor=trail_dat$time2,
-                   lin_pred=drop(lin_pred), s0_fun, weights = weights)
+                   lin_pred=drop(lin_pred), s0_fun, restrict = restrict,
+                   weights = weights)
 
   mod_npkm
 }
 
-npkm_known_S <- function(trail_dat, formula, S0, coefs, weights = NULL){
+npkm_known_S <- function(trail_dat, formula, S0, coefs, restrict = FALSE, weights = NULL){
   # compute linear predictor for trailing gap
   # Create  model matrix
   X <- stats::model.matrix(formula[-2], data = trail_dat)
@@ -80,7 +81,8 @@ npkm_known_S <- function(trail_dat, formula, S0, coefs, weights = NULL){
 
   # Create 'npkm' object
   mod_npkm <- npkm(time=trail_dat$time1, censor=trail_dat$time2,
-                   lin_pred=drop(lin_pred), S0, weights = weights)
+                   lin_pred=drop(lin_pred), S0, restrict = restrict,
+                   weights = weights)
 
   mod_npkm
 }
@@ -108,7 +110,7 @@ gridpoints.npkm = function(x, beta, grid=100) {
 # mix - discrete density on
 #' @exportS3Method nspmix::initial npkm
 initial.npkm = function(x, beta=NULL, mix=NULL, kmax=NULL) {
-  tms <- x$time
+  tms <- x$ak
   if(is.null(mix) || is.null(mix$pt)) {
     mi = min(tms)
     ma = max(tms)
@@ -139,7 +141,8 @@ logd.npkm = function(x, beta, pt, which=c(1,0,0)) {
   eval_pts <- outer(x$cens, pt, pmin) - matrix(x$time, nrow=n, ncol=k)
   for (i in 1:n){
     neg <- eval_pts[i,] < 0
-    finite <- !neg
+    restricted <- x$restrict & (eval_pts[i,] > 0) & (pt < x$cens[i])
+    finite <- !neg & !restricted
 
     res[i, !finite] <- -Inf
     res[i, finite] <- log(x$S0(eval_pts[i,finite])) * exp(x$lin_pred[i])

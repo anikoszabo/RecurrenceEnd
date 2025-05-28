@@ -15,6 +15,9 @@
 #' contains NAs. The default is set by the na.action setting of \code{options},
 #' which in turn defaults to \code{na.omit}.
 #' @param verbose logical value, if TRUE then information is displayed during computation
+#' @param estimand character, indicating whether the distribution of the unobserved ending
+#' event should be estimated ('end'), or the distribution of the last recurrent event
+#' before the ending event should be estimated ('last_event')
 #' @param known_recur optional list specifying the known recurrence survival distribution
 #' function for each subject. It should have two components: \code{S0} - the baseline survival
 #' function, and \code{coefs} - the coefficients of the recurrence model specified in \code{formula}
@@ -33,9 +36,11 @@
 estimate_end <- function(formula,
                     method=c("naive", "threshold","quantile", "NPMLE"),
                     threshold = 0, quantile=0.95, data, subset, na.action,
+                    estimand = c("end", "last_event"),
                     verbose=FALSE, known_recur=NULL, IPSW = FALSE,
                     bootCI = FALSE, conf.level = 0.95, bootB = 100){
   method <- match.arg(method)
+  estimand <- match.arg(estimand)
 
   # based on reda::rateReg
   if (missing(formula))
@@ -163,7 +168,7 @@ estimate_end <- function(formula,
     if (!is.null(known_recur)){
       mod_npkm <- npkm_known_S(trail_dat = trailDat, formula = formula,
                                S0 = known_recur$S0, coefs = known_recur$coefs,
-                               weights = weights)
+                               weights = weights, restrict = (estimand=="last_event"))
       mod <- NULL
     } else {
       # ignore warning that is due to approx zero estimate for frailty variance
@@ -174,7 +179,7 @@ estimate_end <- function(formula,
 
       # Create 'npkm' object
       mod_npkm <- npkm_from_mod(trail_dat = trailDat, cox_model = mod,
-                                weights = weights)
+                                weights = weights, restrict = (estimand=="last_event"))
     }
     # fit NPMLE
     npmix_fit <- nspmix::cnm(mod_npkm, init=list(mix=nspmix::disc(mod_npkm$ak)),
@@ -183,6 +188,7 @@ estimate_end <- function(formula,
     res <- stats::stepfun(npmix_fit$mix$pt, 1-cumsum(c(0, npmix_fit$mix$pr)))
     output <- list(fit = res,
                 method = method,
+                estimand = estimand,
                  model = mod)
   }
 
