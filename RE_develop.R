@@ -84,3 +84,28 @@ lines(res_qboot$fit, do.points=FALSE, col="pink")
 lines(res_qboot$ci$lower, do.points=FALSE, col="pink", lty=2)
 lines(res_qboot$ci$upper, do.points=FALSE, col="pink", lty=2)
 
+# terminal events
+# randomly select 20% of censoring indicators that are larger than the true event time
+# to be terminal events
+set.seed(3456)
+all_pts <- unique(a$patient.id)
+possible_pts <- unique(a$patient.id[a$disease_onset < a$C])
+term <- ifelse(all_pts %in% possible_pts,
+               rbinom(n = length(possible_pts), size=1, prob = 0.2), 0)
+
+tres_q <- estimate_end(Recur(time=time, id=patient.id, event=indicator, terminal = term) ~ 1,
+                      method="quantile", data=a, quantile=0.95)
+tres_np <- estimate_end(Recur(time=time, id=patient.id, event=indicator, terminal = term) ~ Z.1 + Z.2,
+                        method="NPMLE", data=a)
+tres_np2 <- estimate_end(Recur(time=time, id=patient.id, event=indicator, terminal = term) ~ Z.1 + Z.2,
+                        method="NPMLE", data=a, estimand = "last_event")
+
+
+curve(pexp(x, rate=ld0, lower=FALSE), from=0, to=max(a$time[a$indicator==1]),
+      ylim=c(0,1), ylab="")
+lines(res_q$fit, do.points=FALSE, col="red")
+lines(tres_q$fit, do.points=FALSE, col="pink")
+lines(res_np$fit, do.points=FALSE, col="blue")
+lines(tres_np$fit, do.points=FALSE, col="lightblue")
+lines(tres_np2$fit, do.points=FALSE, col="lightblue", lty=2)
+

@@ -3,7 +3,8 @@
 #'
 #' @param formula a two-sided formula with a \code{\link[reda]{Recur}} object specifying the
 #' recurrent event process on the left-hand side, and the predictors of its intensity
-#' on the right-hand side. Origin and terminal events in \code{Recur} are not respected.
+#' on the right-hand side. Origin values in \code{Recur} are not respected, but terminal
+#' events are accounted for.
 #' @param method character string specifying the estimation method
 #' @param threshold optional numeric value, specifies the threshold for the "threshold" method.
 #' Defaults to 0, which is equivalent to the "naive" method.
@@ -91,6 +92,7 @@ estimate_end <- function(formula,
                            function(x)max(x[events[x]]))
   last_event <- Dat$time2[last_event_idx]
   last_time <- Dat$time2[resp@last_idx]  # censoring times
+  terminal <- resp@.Data[resp@last_idx, "terminal"] # is the last censoring time a terminal event
 
   if (IPSW){
     first_event_idx <- tapply(seq_len(nrow(Dat)), Dat["id"],
@@ -114,8 +116,9 @@ estimate_end <- function(formula,
   }
   if (method == "threshold"){
     if (!isTRUE(threshold >= 0)) stop("'threshold' should be a positive number")
-    res <- survival::survfit(survival::Surv(last_event, last_time-last_event >= threshold ) ~ 1,
-                             weights = weights,  conf.int = conf.level)
+    res <- survival::survfit(
+      survival::Surv(last_event, last_time-last_event >= threshold | terminal) ~ 1,
+      weights = weights,  conf.int = conf.level)
     output <- list(fit = survfit_to_survfun(res),
                 ci = survfitCI_to_survfun(res),
                 method = method,
@@ -129,8 +132,9 @@ estimate_end <- function(formula,
                                  data = Dat[-resp@last_idx,],
                                  weights=Dat[-resp@last_idx,]$.weights)
     thresh <- stats::quantile(gap_fit, probs = quantile, conf.int = FALSE)
-    res <- survival::survfit(survival::Surv(last_event, last_time-last_event >= thresh ) ~ 1,
-                             weights = weights,  conf.int = conf.level)
+    res <- survival::survfit(
+      survival::Surv(last_event, last_time-last_event >= thresh | terminal) ~ 1,
+                     weights = weights,  conf.int = conf.level)
 
     output <- list(fit = survfit_to_survfun(res),
                 ci = survfitCI_to_survfun(res),
@@ -182,8 +186,11 @@ estimate_end <- function(formula,
                                 weights = weights, restrict = (estimand=="last_event"))
     }
     # fit NPMLE
-    npmix_fit <- nspmix::cnm(mod_npkm, init=list(mix=nspmix::disc(mod_npkm$ak)),
-                     model="proportions", plot="null", verbose=verbose)
+    # ignore warning about zero-probability block
+    suppressWarnings(
+      npmix_fit <- nspmix::cnm(mod_npkm, init=list(mix=nspmix::disc(mod_npkm$ak)),
+                       model="proportions", plot="null", verbose=verbose)
+    )
 
     res <- stats::stepfun(npmix_fit$mix$pt, 1-cumsum(c(0, npmix_fit$mix$pr)))
     output <- list(fit = res,
