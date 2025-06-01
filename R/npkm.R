@@ -6,7 +6,7 @@
 #' @importFrom survival basehaz
 #' @importFrom utils tail
 
-npkm <- function(time, censor, terminal, lin_pred, S0, restrict = FALSE, weights = NULL){
+npkm <- function(time, censor, terminal, lin_pred, S0, weights = NULL){
   if ((length(time) != length(censor)) | length(time) != length(lin_pred) | length(time) != length(lin_pred)) {
     stop("Arguments should have equal length")
   }
@@ -21,16 +21,16 @@ npkm <- function(time, censor, terminal, lin_pred, S0, restrict = FALSE, weights
       stop("Arguments should have equal length")
     }
   }
-  ak <- if (restrict) {sort(unique(c(time, censor)))} else {sort(unique(time))}
+  ak <- sort(unique(time))
 
   res <- list(time = time, censor = censor, terminal = terminal, lin_pred = lin_pred,
-              S0fun = S0, ak = ak, restrict=restrict, weights = weights)
+              S0fun = S0, ak = ak,  weights = weights)
 
   class(res) <- "npkm"
   res
 }
 
-npkm_from_mod <- function(trail_dat, cox_model, restrict = FALSE, weights = NULL){
+npkm_from_mod <- function(trail_dat, cox_model,  weights = NULL){
   # compute baseline hazard and linear predictor for trailing gap
   # Create  model matrix
   fla <- cox_model$formula
@@ -61,13 +61,13 @@ npkm_from_mod <- function(trail_dat, cox_model, restrict = FALSE, weights = NULL
   # Create 'npkm' object
   mod_npkm <- npkm(time=trail_dat$time1, censor=trail_dat$time2,
                    terminal=trail_dat$terminal,
-                   lin_pred=drop(lin_pred), s0_fun, restrict = restrict,
+                   lin_pred=drop(lin_pred), s0_fun,
                    weights = weights)
 
   mod_npkm
 }
 
-npkm_known_S <- function(trail_dat, formula, S0, coefs, restrict = FALSE, weights = NULL){
+npkm_known_S <- function(trail_dat, formula, S0, coefs, weights = NULL){
   # compute linear predictor for trailing gap
   # Create  model matrix
   X <- stats::model.matrix(formula[-2], data = trail_dat)
@@ -83,7 +83,7 @@ npkm_known_S <- function(trail_dat, formula, S0, coefs, restrict = FALSE, weight
   # Create 'npkm' object
   mod_npkm <- npkm(time=trail_dat$time1, censor=trail_dat$time2,
                    terminal=trail_dat$terminal,
-                   lin_pred=drop(lin_pred), S0, restrict = restrict,
+                   lin_pred=drop(lin_pred), S0,
                    weights = weights)
 
   mod_npkm
@@ -143,9 +143,8 @@ logd.npkm = function(x, beta, pt, which=c(1,0,0)) {
   eval_pts <- outer(x$cens, pt, pmin) - matrix(x$time, nrow=n, ncol=k)
   for (i in 1:n){
     neg <- eval_pts[i,] < 0
-    restricted <- x$restrict & (eval_pts[i,] > 0) & (pt < x$cens[i])
     after_terminal <- x$terminal[i] & (pt >= x$cens[i])
-    finite <- !neg & !restricted & !after_terminal
+    finite <- !neg &  !after_terminal
 
     res[i, !finite] <- -Inf
     res[i, finite] <- log(x$S0(eval_pts[i,finite])) * exp(x$lin_pred[i])

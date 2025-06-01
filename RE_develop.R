@@ -97,8 +97,6 @@ tres_q <- estimate_end(Recur(time=time, id=patient.id, event=indicator, terminal
                       method="quantile", data=a, quantile=0.95)
 tres_np <- estimate_end(Recur(time=time, id=patient.id, event=indicator, terminal = term) ~ Z.1 + Z.2,
                         method="NPMLE", data=a)
-tres_np2 <- estimate_end(Recur(time=time, id=patient.id, event=indicator, terminal = term) ~ Z.1 + Z.2,
-                        method="NPMLE", data=a, estimand = "last_event")
 
 
 curve(pexp(x, rate=ld0, lower=FALSE), from=0, to=max(a$time[a$indicator==1]),
