@@ -6,8 +6,8 @@
 #' @importFrom survival basehaz
 #' @importFrom utils tail
 
-npkm <- function(time, censor, lin_pred, S0, restrict = FALSE, weights = NULL){
-  if ((length(time) != length(censor)) | length(time) != length(lin_pred)) {
+npkm <- function(time, censor, terminal, lin_pred, S0, restrict = FALSE, weights = NULL){
+  if ((length(time) != length(censor)) | length(time) != length(lin_pred) | length(time) != length(lin_pred)) {
     stop("Arguments should have equal length")
   }
   if (!is.function(S0)){
@@ -23,8 +23,8 @@ npkm <- function(time, censor, lin_pred, S0, restrict = FALSE, weights = NULL){
   }
   ak <- if (restrict) {sort(unique(c(time, censor)))} else {sort(unique(time))}
 
-  res <- list(time = time, censor = censor, lin_pred = lin_pred, S0fun = S0,
-              ak = ak, restrict=restrict, weights = weights)
+  res <- list(time = time, censor = censor, terminal = terminal, lin_pred = lin_pred,
+              S0fun = S0, ak = ak, restrict=restrict, weights = weights)
 
   class(res) <- "npkm"
   res
@@ -60,6 +60,7 @@ npkm_from_mod <- function(trail_dat, cox_model, restrict = FALSE, weights = NULL
 
   # Create 'npkm' object
   mod_npkm <- npkm(time=trail_dat$time1, censor=trail_dat$time2,
+                   terminal=trail_dat$terminal,
                    lin_pred=drop(lin_pred), s0_fun, restrict = restrict,
                    weights = weights)
 
@@ -81,6 +82,7 @@ npkm_known_S <- function(trail_dat, formula, S0, coefs, restrict = FALSE, weight
 
   # Create 'npkm' object
   mod_npkm <- npkm(time=trail_dat$time1, censor=trail_dat$time2,
+                   terminal=trail_dat$terminal,
                    lin_pred=drop(lin_pred), S0, restrict = restrict,
                    weights = weights)
 
@@ -142,10 +144,15 @@ logd.npkm = function(x, beta, pt, which=c(1,0,0)) {
   for (i in 1:n){
     neg <- eval_pts[i,] < 0
     restricted <- x$restrict & (eval_pts[i,] > 0) & (pt < x$cens[i])
-    finite <- !neg & !restricted
+    after_terminal <- x$terminal[i] & (pt >= x$cens[i])
+    finite <- !neg & !restricted & !after_terminal
 
     res[i, !finite] <- -Inf
     res[i, finite] <- log(x$S0(eval_pts[i,finite])) * exp(x$lin_pred[i])
+    if (sum(finite) == 0){# no pt is x$time to x$cens interval and x$terminal==1
+       res[i, after_terminal] <- -100
+    }
+
   }
 
   if(which[1] == 1) {
