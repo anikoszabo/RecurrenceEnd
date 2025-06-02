@@ -42,3 +42,46 @@ get_limits <- function(funlist, times, conf.level){
 
 }
 
+
+# estimate last-event distribution from end distribution
+post_process <- function(npkm_fit, npkm){
+
+  n <- length(npkm)
+  D_pts <- npkm_fit$mix$pt  # distribution atoms for D
+  D_pr <- npkm_fit$mix$pr  # distribution weights
+
+  # subject-specific distribution of D
+  Sik <- exp(logd.npkm(x = npkm, beta=NA, pt = D_pts)$ld)
+  numerator <- Sik * matrix(D_pr, nrow=n, ncol=length(D_pts), byrow=TRUE)
+  ss_D_pr <- numerator/rowSums(numerator)
+
+  # self-consistency:
+  # all.equal(colMeans(ss_D_pr), pr)
+
+  # subject-specific distribution of T*
+  T_pts <- npkm$ak  # atoms for the distribution of T*
+  ss_T_pr <- matrix(0, nrow=n, ncol=length(T_pts))
+  for (i in 1:n){
+    # P(T*_i=T_{i,m_i} | D_i = a_k)
+    pk <- numeric(length(D_pts))
+    pk[D_pts >= np$time[i] & D_pts <= np$censor[i]] <- 1
+    eval_pts <- D_pts - np$time[i]
+    beyond_censor <- (D_pts > np$censor[i]) & !np$terminal[i]
+    pk[beyond_censor] <- np$S0(eval_pts[beyond_censor]) ^ exp(np$lin_pred[i])
+
+    idx_Ti <- which.min(abs(T_pts - np$time[i])) # index of T_{i,m_i} in T_pts
+
+    cond_pr <- matrix(0, nrow = length(T_pts), ncol=length(D_pts))
+    cond_pr[idx_Ti, ] <- pk
+    if (max(D_pts) > np$censor[i]){
+      idx_D_Ci <- min(which(D_pts > np$censor[i])) # index of first observation after C_i in D_pts
+      for (k in idx_D_Ci : length(D_pts)){
+        idx <- which(T_pts <= D_pts[k] & T_pts > np$censor[i])
+        cond_pr[idx, k] <- (1 - pk[k]) / length(idx)
+      }
+    }
+    ss_T_pr[i, ] <- cond_pr %*% ss_D_pr[i,]
+  }
+
+  list(pt=T_pts, pr = colMeans(ss_T_pr))
+}

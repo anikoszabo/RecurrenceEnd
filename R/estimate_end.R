@@ -172,7 +172,7 @@ estimate_end <- function(formula,
     if (!is.null(known_recur)){
       mod_npkm <- npkm_known_S(trail_dat = trailDat, formula = formula,
                                S0 = known_recur$S0, coefs = known_recur$coefs,
-                               weights = weights, restrict = (estimand=="last_event"))
+                               weights = weight)
       mod <- NULL
     } else {
       # ignore warning that is due to approx zero estimate for frailty variance
@@ -183,7 +183,7 @@ estimate_end <- function(formula,
 
       # Create 'npkm' object
       mod_npkm <- npkm_from_mod(trail_dat = trailDat, cox_model = mod,
-                                weights = weights, restrict = (estimand=="last_event"))
+                                weights = weights)
     }
     # fit NPMLE
     # ignore warning about zero-probability block
@@ -192,7 +192,13 @@ estimate_end <- function(formula,
                        model="proportions", plot="null", verbose=verbose)
     )
 
-    res <- stats::stepfun(npmix_fit$mix$pt, 1-cumsum(c(0, npmix_fit$mix$pr)))
+    if (estimand == "last_event"){
+      post_mix <- post_process(npkm_fit = npmix_fit, npkm = mod_npkm)
+      res <- stats::stepfun(post_mix$pt, 1-cumsum(c(0, post_mix$pr)))
+    } else { #estimand == "end"
+      res <- stats::stepfun(npmix_fit$mix$pt, 1-cumsum(c(0, npmix_fit$mix$pr)))
+    }
+
     output <- list(fit = res,
                 method = method,
                 estimand = estimand,
@@ -261,7 +267,12 @@ estimate_end <- function(formula,
         npmix_fit_b <- nspmix::cnm(mod_npkm_b, init=list(mix=nspmix::disc(mod_npkm_b$ak)),
                                  model="proportions", plot="null", verbose=verbose)
 
-        res_b <- stats::stepfun(npmix_fit_b$mix$pt, 1-cumsum(c(0, npmix_fit_b$mix$pr)))
+        if (estimand == "last_event"){
+          res_b <- post_process(npkm_fit=npmix_fit_b, npkm=mod_npkm_b)
+        } else { #estimand == "end"
+          res_b <- stats::stepfun(npmix_fit_b$mix$pt, 1-cumsum(c(0, npmix_fit_b$mix$pr)))
+        }
+
         bootres <- c(bootres, list(res_b))
       }
     }

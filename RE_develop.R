@@ -57,14 +57,14 @@ km <- survfit(Surv(obs, delta) ~ 1, data=a0)
 
 curve(pexp(x, rate=ld0, lower=FALSE), from=0, to=max(a$time[a$indicator==1]),
       ylim=c(0,1), ylab="")
-lines(res_n$fit, do.points=FALSE, col="red")
-lines(res_q$fit, do.points=FALSE, col="pink")
-lines(res_np0$fit, do.points=FALSE, col="magenta")
-lines(res_np0b$fit, do.points=FALSE, col="magenta", lty=2)
-lines(res_np$fit, do.points=FALSE, col="blue")
-lines(res_npb$fit, do.points=FALSE, col="blue", lty=2)
-lines(res_np2$fit, do.points=FALSE, col="green")
-lines(res_np2b$fit, do.points=FALSE, col="green", lty=2)
+lines(res_n, col="red")
+lines(res_q, col="pink")
+lines(res_np0, col="magenta")
+lines(res_np0b, col="magenta", lty=2)
+lines(res_np, col="blue")
+lines(res_npb, col="blue", lty=2)
+lines(res_np2, col="green")
+lines(res_np2b, col="green", lty=2)
 lines(km, conf.int=FALSE, col="brown")
 #legend("topright", legend=c("Naive", "NPMLE", "NPMLE_known"), col=2:4, lty=1)
 
@@ -77,12 +77,8 @@ res_npboot <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.
                        bootB = 100)
 curve(pexp(x, rate=ld0, lower=FALSE), from=0, to=max(a$time[a$indicator==1]),
       ylim=c(0,1), ylab="")
-lines(res_npboot$fit, do.points=FALSE, col="blue")
-lines(res_npboot$ci$lower, do.points=FALSE, col="blue", lty=2)
-lines(res_npboot$ci$upper, do.points=FALSE, col="blue", lty=2)
-lines(res_qboot$fit, do.points=FALSE, col="pink")
-lines(res_qboot$ci$lower, do.points=FALSE, col="pink", lty=2)
-lines(res_qboot$ci$upper, do.points=FALSE, col="pink", lty=2)
+lines(res_npboot, col="blue", conf.int = TRUE, conf.col="blue", conf.lty=2)
+lines(res_qboot, col="pink", conf.int = TRUE, conf.col="pink", conf.lty=2)
 
 # terminal events
 # randomly select 20% of censoring indicators that are larger than the true event time
@@ -103,9 +99,20 @@ tres_np2 <- estimate_end(Recur(time=time, id=patient.id, event=indicator, termin
 
 curve(pexp(x, rate=ld0, lower=FALSE), from=0, to=max(a$time[a$indicator==1]),
       ylim=c(0,1), ylab="")
-lines(res_q$fit, do.points=FALSE, col="red")
-lines(tres_q$fit, do.points=FALSE, col="pink")
-lines(res_np$fit, do.points=FALSE, col="blue")
-lines(tres_np$fit, do.points=FALSE, col="lightblue")
-lines(tres_np2$fit, do.points=FALSE, col="lightblue", lty=2)
+lines(res_q, col="red")
+lines(tres_q, col="pink")
+lines(res_np, col="blue")
+lines(tres_np, col="lightblue")
+lines(tres_np2, col="lightblue", lty=2)
+
+# estimands
+
+leres_np <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2,
+                        method="NPMLE", data=a, estimand = "last_event")
+
+curve(pexp(x, rate=ld0, lower=FALSE), from=0, to=max(a$time[a$indicator==1]),
+      ylim=c(0,1), ylab="")
+lines(res_q, col="red")
+lines(res_np,  col="blue")
+lines(leres_np,  col="green")
 
