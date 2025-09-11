@@ -12,13 +12,15 @@ desc::desc_add_author("Duo", "Yu", "duoyu@mcw.edu", role=c("aut"))
 
 use_readme_rmd()
 
+usethis::use_data_raw(name="SimulatedData")
+
 re <- as.package(".")
 load_all(re)
 document(re)
+run_examples()
 
 build_readme()
 check(re)
-
 
 set.seed(2453)
 ld0 <- 1

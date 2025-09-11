@@ -3,7 +3,7 @@
 #' List of methods that apply to \code{survfun} objects created by the
 #' \code{\link{estimate_end}} function.
 #'
-#' @rdname survfun
+#' @name survfun
 #'
 #' @param x object of class 'survfun'
 #' @param object object of class 'survfun'
@@ -12,15 +12,34 @@
 #' @param conf.lty integer, linetype for plotted confindence limits
 #' @param conf.col color of plotted confindence limits
 #' @param ylim numeric vector of length 2 defining the y limits of the plot. Defaults to \code{c(0,1)}.
+#' @param xlab,ylab character labels for the x and y axis.
+#' @param main character main title of the plot.
 #' @param do.points logical, specifying whether points should be plotted at the closed end
 #' of each step. Defaults to \code{FALSE}.
 #' @param ... additional parameters, only used for the \code{plot} method, where they
 #' are passed to \code{\link[stats]{plot.stepfun}}
 #' @export
 #' @importFrom graphics plot
+#' @examples
+#' res_q <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
+#'                      method="quantile", data=SimulatedData, quantile=0.99)
+#' res_n <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
+#'                      method="naive", data=SimulatedData)
+#' # plot estimated survival function
+#' plot(res_q, conf.int=TRUE, col="blue", conf.col="navy", conf.lty=3)
+#' lines(res_n, col="darkred")
+#'
+#' # get quantiles
+#' median(res_q)
+#' quantile(res_q, probs=c(0.1, 0.9))
+#'
+#' # values at specific time-point
+#' predict(res_q, times = c(0.5, 1, 1.5))
+#'
 plot.survfun <- function(x, conf.int = FALSE, ylim = c(0,1), conf.lty = 2,
-                         conf.col = 1, do.points = FALSE, ...){
-  plot(x$fit, do.points=do.points, ylim = ylim, ...)
+                         conf.col = 1, do.points = FALSE, main = "",
+                         xlab = "Time", ylab = "Survival function",...){
+  plot(x$fit, do.points=do.points, ylim = ylim, main=main, xlab=xlab, ylab=ylab, ...)
   if (conf.int & !is.null(x$ci)){
     lines(x$ci$lower, do.points=do.points, col=conf.col, lty=conf.lty)
     lines(x$ci$upper, do.points=do.points, col=conf.col, lty=conf.lty)
@@ -61,22 +80,19 @@ predict.survfun <- function(object, times = NULL, conf.int = FALSE, ...){
 #' @importFrom stats quantile
 #' @export
 quantile.survfun <- function(x, probs = c(0.25, 0.5, 0.75), conf.int=TRUE, ...){
-  # quantile of a non-increasing step-function that goes from 1 to 0
-  q.step <- function(stepf){
-    xx <- get("x", envir = environment(stepf))
-    yy <- get("y", envir = environment(stepf))
-    # quantiles are of the original distribution, not of survival function
-    idx <- findInterval(probs, c(0, 1-yy))
-    # values beyond the right tail should be set to NA (not reached)
-    qs <- c(xx, NA)[idx]
-    names(qs) <- probs
-    qs
-  }
-  res <- list(quantile = q.step(x$fit))
+  # create fake survfit object
+  time <-  get("x", envir = environment(x$fit))
+  surv <-  get("y", envir = environment(x$fit))
+  sf <- list(time = time, surv=surv)
+
   if (conf.int & !is.null(x$ci)){
-    ci <- list(lower = q.step(x$ci$lower), upper = q.step(x$ci$upper))
-    res <- c(res, ci)
+    lower <- get("y", envir = environment(x$ci$lower))
+    upper <- get("y", envir = environment(x$ci$upper))
+    sf <- c(sf, list(lower=lower, upper=upper))
   }
+  class(sf) <- "survfit"
+
+  res <- quantile(sf, probs = probs, conf.int = conf.int)
   res
 }
 

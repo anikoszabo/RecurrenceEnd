@@ -30,6 +30,28 @@
 #' @importFrom stats stepfun model.frame model.extract update quantile
 #' @importFrom survival survfit coxph Surv
 #' @importFrom reda is.Recur check_Recur Recur
+#' @seealso [median()], [quantile()], [predict()], and [plot()] for
+#' working with the objects of class 'survfun'
+#' @examples
+#' # Naive estimator
+#' res_n <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
+#'          method="naive", data=SimulatedData)
+#' median(res_n)
+#' # Threshold estimator using the 99th quantile of the recurrent event distribution
+#' res_q <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
+#'                      method="quantile", data=SimulatedData, quantile=0.99)
+#' quantile(res_q)
+#' # NPMLE estimator, adjusting for covariates in the recurrent event estimation
+#' res_np <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2,
+#'                       method="NPMLE", data=SimulatedData)
+#' plot(res_np)
+#' # request bootstrap confidence intervals (B should be larger in real application)
+#' res_npb <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2,
+#'                       method="NPMLE", bootCI=TRUE, bootB=5, data=SimulatedData)
+#' plot(res_npb, conf.int=TRUE)
+
+
+
 
 estimate_end <- function(formula,
                     method=c("naive", "threshold","quantile", "NPMLE"),

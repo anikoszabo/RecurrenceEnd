@@ -12,7 +12,6 @@ estimate_end(
   data,
   subset,
   na.action,
-  estimand = c("end", "last_event"),
   verbose = FALSE,
   known_recur = NULL,
   IPSW = FALSE,
@@ -24,7 +23,8 @@ estimate_end(
 \arguments{
 \item{formula}{a two-sided formula with a \code{\link[reda]{Recur}} object specifying the
 recurrent event process on the left-hand side, and the predictors of its intensity
-on the right-hand side. Origin and terminal events in \code{Recur} are not respected.}
+on the right-hand side. Origin values in \code{Recur} are not respected, but terminal
+events are accounted for.}
 
 \item{method}{character string specifying the estimation method}
 
@@ -41,10 +41,6 @@ quantile used for the "quantile" method.}
 \item{na.action}{a function which indicates what should happen when the data
 contains NAs. The default is set by the na.action setting of \code{options},
 which in turn defaults to \code{na.omit}.}
-
-\item{estimand}{character, indicating whether the distribution of the unobserved ending
-event should be estimated ('end'), or the distribution of the last recurrent event
-before the ending event should be estimated ('last_event')}
 
 \item{verbose}{logical value, if TRUE then information is displayed during computation}
 
@@ -67,4 +63,26 @@ an object of class \code{\link{survfun}} with the estimated survival distributio
 }
 \description{
 Estimate the distribution of the ending event of a recurrent event process
+}
+\examples{
+# Naive estimator
+res_n <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
+         method="naive", data=SimulatedData)
+median(res_n)
+# Threshold estimator using the 99th quantile of the recurrent event distribution
+res_q <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
+                     method="quantile", data=SimulatedData, quantile=0.99)
+quantile(res_q)
+# NPMLE estimator, adjusting for covariates in the recurrent event estimation
+res_np <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2,
+                      method="NPMLE", data=SimulatedData)
+plot(res_np)
+# request bootstrap confidence intervals (B should be larger in real application)
+res_npb <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2,
+                      method="NPMLE", bootCI=TRUE, bootB=5, data=SimulatedData)
+plot(res_npb, conf.int=TRUE)
+}
+\seealso{
+[median()], [quantile()], [predict()], and [plot()] for
+working with the objects of class 'survfun'
 }

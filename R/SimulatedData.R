@@ -1,0 +1,16 @@
+#' Simulated dataset with terminating recurrent event process
+#'
+#' The data set contains simulated recurrent event times for 96 subjects.
+#' It was generated using the \code{\link{sim_recur_end}} function. The
+#' underlying distribution of the terminating event is Exp(1).
+#'
+#' @format A data frame with 448 rows and 5 variables:
+#' \describe{
+#'   \item{patient.id}{int Patient ID}
+#'   \item{time}{dbl Observation time of a recurrent event or censoring}
+#'   \item{indicator}{int Event indicator. 1 - recurrent event, 0 - censoring}
+#'   \item{Z.1}{int Binary predictor of recurrent event intensity}
+#'   \item{Z.2}{dbl Continuous predictor of recurrent event intensity}
+#'   }
+
+"SimulatedData"
