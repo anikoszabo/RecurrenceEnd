@@ -125,6 +125,7 @@ system.time(
  bias_res1 <- loop_settings(nsim=nsim0, method_list = method_list1,
                            quantiles=quantiles0, param_grid = param_grid1)
 )
+
 # aggregate results
 avebias_res1 <- bias_res1 |>
   group_by(Method, mu_d, p_c, EN) |>
@@ -162,4 +163,5 @@ system.time(
   bias_res2 <- loop_settings(nsim=nsim0, method_list = method_list2, quantiles=quantiles0,
                           param_grid = param_grid2, cov_fun = cov_fun0)
 )
+
 save(bias_res2, file = "Manuscript/Data/Simulation2.RData")
