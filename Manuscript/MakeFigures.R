@@ -278,3 +278,93 @@ pushViewport(viewport(x = 0.98, y = 0.98, width = 0.45, height = 0.40,
                       just = c("right","top")))
 grid.draw(tg)
 dev.off()
+
+########### Subgroup plots ###########
+#### By gender ###########
+set.seed(42)
+
+method_colors3 <- c(
+  "NPMLE.m"     = "#E64B35",  # red (male)
+  "NPMLE.f"     = "#00A087"  # teal (male)
+)
+
+
+HF.m <- subset(HF, sex == "M")
+npmle.m <- estimate_end(
+  Recur(time = time, id = patient.id, event = indicator) ~ age + race,
+  method = "NPMLE", bootCI = TRUE, data = HF.m)
+HF.f <- subset(HF, sex == "F")
+npmle.f <- estimate_end(
+  Recur(time = time, id = patient.id, event = indicator) ~ age + race,
+  method = "NPMLE", bootCI = TRUE, data = HF.f)
+
+pdf("Manuscript/Figures/ALresultsBySex.pdf", width = 8, height = 6)
+plot(npmle.m, do.points = FALSE, ylim = c(0, 1), xaxt = "n", las = 1,
+     xlab = "Years", ylab = "Survival Probability",
+     main = "",
+     col = method_colors3["NPMLE.m"],
+     conf.int = TRUE,
+     conf.col = method_colors3["NPMLE.m"],
+     conf.lty = 2,
+     #conf.lwd = 1.5,
+     lty = 1, lwd = 2)
+
+lines(npmle.f,
+      col = method_colors3["NPMLE.f"],
+      conf.int = TRUE,
+      conf.col = method_colors3["NPMLE.f"],
+      conf.lty = 2, #conf.lwd = 1.5,
+      lty = 1, lwd = 2)
+
+
+# Add custom x-axis in years (convert days to years)
+axis(1, at = seq(0, 4000, by = 365), labels = seq(0, 4000, by = 365) / 365)
+
+# Add legend
+legend("topright",
+       legend = c("NPMLE (Male)", "NPMLE (Female)"),
+       col = method_colors3[c("NPMLE.m","NPMLE.f")],
+       lty = 1, lwd = 2, cex = 0.8, bty = "n")
+dev.off()
+
+######### By age group ######
+set.seed(42)
+
+method_colors3 <- c(
+  "NPMLE.ge65"     = "#E64B35",  # red (>=65)
+  "NPMLE.lt65"     = "#00A087"  # teal (>=65)
+)
+
+HF.ge65 <- subset(HF, !is.na(age) & age >= 65)
+HF.lt65 <- subset(HF, !is.na(age) & age < 65)
+
+npmle.ge65 <- estimate_end(Recur(time = time, id = patient.id, event = indicator) ~ age + race,
+                           method = "NPMLE", bootCI = TRUE, data = HF.ge65)
+npmle.lt65 <- estimate_end(Recur(time = time, id = patient.id, event = indicator) ~ age + race,
+                           method = "NPMLE", bootCI = TRUE, data = HF.lt65)
+
+pdf("Manuscript/Figures/ALresultsByAge.pdf", width = 8, height = 6)
+plot(npmle.ge65, do.points = FALSE, ylim = c(0, 1), xaxt = "n", las = 1,
+     xlab = "Years", ylab = "Survival Probability",
+     main = "",
+     col = method_colors3["NPMLE.ge65"],
+     conf.int = TRUE,
+     conf.col = method_colors3["NPMLE.ge65"],
+     conf.lty = 2,
+    # conf.lwd = 1.5,
+     lty = 1, lwd = 2)
+
+lines(npmle.lt65,
+      col = method_colors3["NPMLE.lt65"],
+      conf.int = TRUE,
+      conf.col = method_colors3["NPMLE.lt65"],
+      conf.lty = 2, #conf.lwd = 1.5,
+      lty = 1, lwd = 2)
+
+axis(1, at = seq(0, 4000, by = 365), labels = seq(0, 4000, by = 365) / 365)
+
+legend("topright",
+       legend = c("NPMLE (Age ≥ 65)", "NPMLE (Age < 65)"),
+       col = method_colors3[c("NPMLE.ge65","NPMLE.lt65")],
+       lty = 1, lwd = 2, cex = 0.8, bty = "n")
+dev.off()
