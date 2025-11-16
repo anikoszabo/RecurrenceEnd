@@ -103,7 +103,7 @@ loop_settings <- function(nsim, method_list, quantiles, param_grid, ...){
 ######################
 # Simulation study 1 #
 ######################
-set.seed(111020251)
+set.seed(111520251)
 quantiles0 <- c(0.75, 0.50, 0.25)
 nsim0 <- 500
 
@@ -138,7 +138,7 @@ save(avebias_res1, file = "Manuscript/Data/Simulation1.RData")
 ######################
 # Simulation study 2 #
 ######################
-set.seed(111020252)
+set.seed(111520252)
 
 cov_fun0 <- function(n, ...) {
   matrix(rbinom(n, 1, 0.5), ncol = 1)
