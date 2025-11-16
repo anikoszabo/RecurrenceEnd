@@ -107,3 +107,174 @@ fig2 <- ggplot(bias_long, aes(x = QuantileDFpercent, y = Bias, fill = Method)) +
 pdf("Manuscript/Figures/Simulation2.pdf")
 fig2
 dev.off()
+
+######################
+# AL data results
+#####################
+load("Manuscript/Data/HFdata.RData")
+
+########### Random sample of 50 observations ###########
+
+set.seed(42)
+
+sample_ids <- HF |>
+  distinct(patient.id) |>
+  sample_n(50)  |>
+  pull(patient.id)
+
+# Step 1: Prepare original events
+HF_sample <- HF |>
+  filter(patient.id %in% sample_ids) |>
+  # find length of followup
+  group_by(patient.id) |>
+  mutate(time = time / 365.24,
+         max_time = max(time)) |>
+  ungroup() |>
+  # ensure order by max_time
+  arrange(max_time) |>
+  mutate(y_pos = dense_rank(max_time))
+
+# Step 2: line segments
+line_segments <- HF_sample |>
+  filter(indicator == 0)
+
+# Step 3: events
+events <- HF_sample |>
+  filter(indicator == 1)
+
+fig3 <- ggplot(events, aes(x=time, y=y_pos)) +
+  geom_segment(aes(yend = y_pos, xend = time), x=0, data=line_segments,
+               color = "gray80", linewidth = 0.4) +
+  geom_point(color="forestgreen", alpha=0.8) +
+  scale_x_continuous(
+    breaks = seq(0, max(HF$time)),
+    limits = c(-1, NA),
+    expand = expansion(mult = c(0, 0.02))
+  ) +
+  scale_y_continuous(
+    labels = NULL,
+    trans = "reverse") +
+  labs(
+    x = "Time Before AL Diagnosis Date (years)",
+    y = "",
+    title = "Recurrent Events Timeline"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.title.position = "plot",
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank(),
+    legend.position = "none"  # Remove legend
+  )
+
+pdf("Manuscript/Figures/HFsample.pdf",width = 7, height = 5)
+fig3
+dev.off()
+
+########## Estimated time to onset #########
+
+library(grid)
+library(gridExtra)
+library(gridBase)
+
+set.seed(42)
+
+npmle <- estimate_end(
+  Recur(time = time, id = patient.id, event = indicator) ~ age + race + sex,
+  method = "NPMLE", bootCI = TRUE, data = HF)
+naive_km <- estimate_end(
+  Recur(time = time, id = patient.id, event = indicator) ~ age + race + sex,
+  method = "naive", threshold = 0, bootCI = TRUE, data = HF)
+data_driven_km <- estimate_end(
+  Recur(time = time, id = patient.id, event = indicator) ~ age + race + sex,
+  method = "quantile", quantile = 0.9, bootCI = TRUE, data = HF)
+
+method_colors3 <- c(
+  "NPMLE"     = "#E64B35",  # red
+  "Naive"     = "#00A087",  # teal
+  "data_driven" = "#7E6148"  # brown
+)
+
+# get medians for this and other methods
+threshold_km <- estimate_end(
+  Recur(time = time, id = patient.id, event = indicator) ~ age + race + sex,
+  method = "threshold", threshold = 365, bootCI = TRUE, data = HF)
+threshold_km2 <- estimate_end(
+  Recur(time = time, id = patient.id, event = indicator) ~ age + race + sex,
+  method = "threshold", threshold = 365*2, bootCI = TRUE, data = HF)
+threshold_km3 <- estimate_end(
+  Recur(time = time, id = patient.id, event = indicator) ~ age + race + sex,
+  method = "threshold", threshold = 365*3, bootCI = TRUE, data = HF)
+
+get_median_CI <- function(sf) {
+  res <- median(sf)
+  c("Median (years)" = sprintf("%.2f", res$quantile/365),
+    "95% CI (years)" =
+    sprintf("(%.2f, %.2f)", res$lower/365, res$upper/365))
+}
+
+
+tab <- as.data.frame(rbind(
+  "Naive" = get_median_CI(naive_km),
+  "Threshold = 1 year" = get_median_CI(threshold_km),
+  "Threshold = 2 years" = get_median_CI(threshold_km2),
+  "Threshold = 3 years" = get_median_CI(threshold_km3),
+  "NPMLE" = get_median_CI(npmle)
+))
+tab$Method <- rownames(tab)
+
+pdf("Manuscript/Figures/ALresults.pdf", width = 8, height = 6)
+plot(npmle, do.points = FALSE, ylim = c(0, 1), xaxt = "n", las=1,
+     xlab = "Years", ylab = "Survival Probability",
+     main = "",
+     col = method_colors3["NPMLE"],
+     conf.int = TRUE,
+     conf.col = method_colors3["NPMLE"],
+     conf.lty = 2,
+    # conf.lwd = 1.5,
+     lty = 1, lwd = 2)
+
+lines(naive_km,
+      col = method_colors3["Naive"],
+      conf.int = TRUE,
+      conf.col = method_colors3["Naive"],
+      conf.lty = 2, #conf.lwd = 1.5,
+      lty = 1, lwd = 2)
+
+lines(data_driven_km,
+      col = method_colors3["data_driven"],
+      conf.int = TRUE,
+      conf.col = method_colors3["data_driven"],
+      conf.lty = 2, #conf.lwd = 1.5,
+      lty = 1, lwd = 2)
+
+# Add custom x-axis in years (convert days to years)
+axis(1, at = seq(0, 4000, by = 365), labels = seq(0, 4000, by = 365) / 365)
+
+legend("bottomleft",
+       legend = c("NPMLE", "Naive", expression(tau[0.9] == 0.4 ~ "years")),
+       col    = method_colors3[c("NPMLE", "Naive", "data_driven")],
+       lty    = 1, lwd = 2, cex = 0.8, bty = "n")
+
+
+tt <- ttheme_minimal(
+  base_size = 9,
+  core    = list(bg_params = list(fill = NA, col = NA),
+                 fg_params = list(hjust = 0, x = 0.02)),
+  colhead = list(bg_params = list(fill = NA, col = NA),
+                 fg_params = list(fontface = 2, hjust = 0, x = 0.02))
+)
+tg <- tableGrob(tab[c("Method", "Median (years)", "95% CI (years)")],
+                rows = NULL, theme = tt)
+
+vps <- baseViewports()
+pushViewport(vps$plot)
+pushViewport(viewport(x = 0.98, y = 0.98, width = 0.45, height = 0.40,
+                      just = c("right","top")))
+grid.draw(tg)
+dev.off()
