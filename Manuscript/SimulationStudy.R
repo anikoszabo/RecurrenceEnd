@@ -104,7 +104,7 @@ loop_settings <- function(nsim, method_list, quantiles, param_grid, ...){
 # Simulation study 1 #
 ######################
 set.seed(111520251)
-quantiles0 <- c(0.75, 0.50, 0.25)
+quantiles0 <- c(0.75, 0.50, 0.25) # quantiles of the survival function
 nsim0 <- 500
 
 # Define parameter grid

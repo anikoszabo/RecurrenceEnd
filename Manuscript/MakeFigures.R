@@ -10,8 +10,10 @@ load("Manuscript/Data/Simulation1.RData")
 mean_bias_long <- avebias_res1 |>
   pivot_longer(cols = c(`Q25%`, `Q50%`, `Q75%`),
                names_to = "Quantile",
-               values_to = "Bias")
-
+               values_to = "Bias") |>
+  mutate(QuantileSF = as.numeric(substr(Quantile, 2, 3)), # for survival function
+         QuantileDF = 100 - QuantileSF, # for distribution function
+         QuantileDFpercent = paste0(QuantileDF, "%"))
 
 # Bias Across Quantiles by Method and λ[r]
 linetype_vals <- c("solid", "dashed", "dotdash", "twodash")
@@ -25,7 +27,7 @@ method_colors <- c(
 
 ord <- c("Full data", "Naive", "Threshold", "NPMLE")
 
-fig1 <- ggplot(mean_bias_long, aes(x = Quantile, y = Bias,
+fig1 <- ggplot(mean_bias_long, aes(x = QuantileDFpercent, y = Bias,
                            color = Method,
                            linetype = factor(p_c),
                            shape = factor(p_c),
@@ -65,7 +67,7 @@ dev.off()
 ########################
 load("Manuscript/Data/Simulation2.RData")
 
-ord <- c("Full_data", "Naive", "Threshold",
+ord <- c("Full data", "Naive", "Threshold",
          "NPMLE unadjusted", "NPMLE adjusted")
 
 bias_long <- bias_res2 |>
@@ -74,7 +76,10 @@ bias_long <- bias_res2 |>
                values_to = "Bias") |>
   dplyr::mutate(
     Method   = factor(Method, levels = ord),
-    Quantile = factor(Quantile, levels = c("Q25%","Q50%","Q75%"))
+    QuantileSF = as.numeric(substr(Quantile, 2, 3)), # for survival function
+    QuantileDF = 100 - QuantileSF, # for distribution function
+    QuantileDFpercent = paste0(QuantileDF, "%") |>
+      factor(levels = c("25%","50%","75%"))
   )
 
 
@@ -87,7 +92,7 @@ method_colors2 <- c(
 )
 
 
-fig2 <- ggplot(bias_long, aes(x = Quantile, y = Bias, fill = Method)) +
+fig2 <- ggplot(bias_long, aes(x = QuantileDFpercent, y = Bias, fill = Method)) +
   geom_boxplot() +
   geom_hline(yintercept = 0, color = "blue", linetype = "dashed", linewidth = 1) +
   labs(x = "Quantile", y = "Bias", fill = "Method") +
