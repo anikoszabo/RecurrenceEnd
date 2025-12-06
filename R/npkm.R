@@ -75,7 +75,7 @@ npkm_known_S <- function(trail_dat, formula, S0, coefs, weights = NULL){
 
   # linear predictor
   if (is.null(coefs)){  # if no predictors
-    lin_pred <- 0
+    lin_pred <- rep(0, nrow(X))
   } else {
     lin_pred <- X %*% coefs
   }
