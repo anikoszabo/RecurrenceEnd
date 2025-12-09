@@ -7,10 +7,16 @@ mix_to_stepfun <- function(mix){
   res
 }
 
-tilt_mix <- function(mix, beta){
+tilt_mix <- function(mix, omega){
   tmix <- mix
-  tmix$pr <- exp(beta * mix$pt) * mix$pr
+  tmix$pr <- exp(omega * mix$pt) * mix$pr
   tmix$pr <- tmix$pr / sum(tmix$pr)
+  tmix
+}
+
+tilt_mix_free <- function(mix, beta0, omega){
+  tmix <- mix
+  tmix$pr <- exp(beta0 + omega * mix$pt) * mix$pr
   tmix
 }
 
@@ -35,7 +41,7 @@ nptilt <- function(time, censor, terminal, covs_end,
 
   res <- list(time = time, censor = censor, terminal = terminal, covs_end = covs_end,
               lin_pred_recur = lin_pred_recur,
-              S0fun = S0_recur, ak = ak,  weights = weights)
+              S0_recur = S0_recur, ak = ak,  weights = weights)
 
   class(res) <- "nptilt"
   res
@@ -57,17 +63,71 @@ nptilt_known_S <- function(trail_dat, formula_end,
   }
 
   # Create  model matrix for ending time
-  X_end <- stats::model.matrix(formula_end[-2], data = trail_dat)
+  X_end <- stats::model.matrix(formula_end, data = trail_dat)
   X_end <- X_end[, -1, drop=FALSE]  # Drop intercept
 
   # Create 'nptilt' object
   res <- nptilt(time=trail_dat$time1, censor=trail_dat$time2,
-                terminal=trail_dat$terminal, covs_end = Z_end,
-                lin_pred_recur=drop(lin_pred), S0_recur = S0_recur,
+                terminal=trail_dat$terminal, covs_end = X_end,
+                lin_pred_recur=drop(lin_pred_recur), S0_recur = S0_recur,
                 weights = weights)
 
-  mod_npkm
+  res
 }
+length.nptilt <- function(x) length(x$time)
+
+weight.nptilt <- function(x, beta) x$weights
+
+logd_nptilt = function(x, beta, mix, which=c(1,0,0)) {
+  # needs mixture
+  pt <- mix$pt
+  dl = vector("list", 3)
+  names(dl) = c("ld","db","dt")
+  n = length(x$time)
+  k = length(pt)
+  res <- matrix(NA, nrow=n, ncol = k)
+
+  omega <- c(x$covs_end %*% beta)
+
+  eval_pts <- outer(x$censor, pt, pmin) - matrix(x$time, nrow=n, ncol=k)
+  for (i in 1:n){
+    tilt_sum <- sum(mix$pr * exp(omega[i] * pt))
+    neg <- eval_pts[i,] < 0
+    after_terminal <- x$terminal[i] & (pt >= x$censor[i])
+    finite <- !neg &  !after_terminal
+
+    res[i, !finite] <- -Inf
+    res[i, finite] <- log(x$S0_recur(eval_pts[i,finite])) * exp(x$lin_pred_recur[i]) +
+      eval_pts[i,finite] * omega[i] - log(tilt_sum)
+    if (sum(finite) == 0){# no pt is x$time to x$cens interval and x$terminal==1
+      res[i, after_terminal] <- -100
+    }
+
+  }
+
+  if(which[1] == 1) {
+    dl$ld = res
+  }
+  if(which[3] == 1) {
+    # not implemented, hopefully not needed
+    dl$dt = matrix(NA, nrow=n, ncol = k)
+  }
+  dl
+}
+
+loglik_nptilt = function(mix, x, beta=NULL, attr=FALSE) {
+  ld = logd_nptilt(x, beta, mix, which=c(1,0,0))$ld
+  ma = matMaxs(ld)
+  dmix = drop(exp(ld - ma) %*% mix$pr) + 1e-100
+  logd = log(dmix) + ma
+  ll = sum(weight(x, beta) * logd)
+  if(attr) {
+    attr(ll, "dmix") = dmix
+    attr(ll, "logd") = logd    # log(mixture density)
+  }
+  ll
+}
+
 
 # simulate example data with two groups
 ld1 <- 1; ld2 <- 2
@@ -88,6 +148,30 @@ a$Z <- aa$Z
 
 trail_a <- a[a$event == 0, ]
 
+# fit 1-sample curve
+npkm_a <- npkm_known_S(trail_a,
+                       formula= Recur(time=time, id=patient.id, event=indicator)~ 1,
+                       S0 = function(x)pexp(x, rate=lr0, lower=FALSE),
+                       coefs = NULL)
+mix0 <- disc(npkm_a$ak)
+fit_a <- cnm(npkm_a, init=list(mix=mix0), model="proportions", plot="null", verbose=FALSE)
+mix1 <- fit_a$mix
+
+
+# two-sample explorations
+nptilt_a <- nptilt_known_S(trail_a, formula_end = ~Z,
+                         formula_recur= Recur(time=time, id=patient.id, event=indicator)~ 1,
+                         S0_recur = function(x)pexp(x, rate=lr0, lower=FALSE),
+                         coefs_recur = NULL)
+
+loglik_nptilt(mix = mix1, x = nptilt_a, beta = c(0))
+# same as
+loglik(mix1, npkm_a)
+
+loglik_nptilt(mix = mix1, x = nptilt_a, beta = c(-0.2))
+curve(Vectorize(loglik_nptilt, vectorize.args = "beta")(mix = mix1, x = nptilt_a, beta = x), from=-1, to=1)
+
+#####
 npkm_a <- npkm_known_S(trail_a,
                         formula= Recur(time=time, id=patient.id, event=indicator)~ 1,
                         S0 = function(x)pexp(x, rate=lr0, lower=FALSE),
