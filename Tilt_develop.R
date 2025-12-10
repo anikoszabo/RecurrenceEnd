@@ -78,6 +78,42 @@ length.nptilt <- function(x) length(x$time)
 
 weight.nptilt <- function(x, beta) x$weights
 
+suppspace.nptilt = function(x, beta) c(-Inf, Inf)
+
+gridpoints.nptilt = function(x, beta, grid=100) {
+  tms <- x$time
+  pp = unique(quantile(tms, seq(0, 1, len=grid),
+                       type = 1))
+  pp
+}
+
+
+initial.nptilt = function(x, beta=NULL, mix=NULL, kmax=NULL) {
+  if (is.null(beta)){
+    beta <- rep(0, ncol(x$covs_end))
+  }
+  tms <- x$ak
+  if(is.null(mix) || is.null(mix$pt)) {
+    mi = min(tms)
+    ma = max(tms)
+    if (is.null(kmax)){
+      pp = unique(tms)
+    } else {
+      if (kmax == 1)
+        return(list(beta=beta,  mix=nspmix::disc(ma)))
+
+      pp = unique(stats::quantile(tms, seq(0, 1, len=min(20, kmax)),
+                                  type=1))
+    }
+
+    mix0 = nspmix::disc(pp)
+    fit = cnm(x, init=list(mix=mix0), model="proportions", plot="null", verbose=FALSE)
+    mix = fit$mix
+  }
+  list(beta=beta, mix=mix)
+}
+
+
 logd_nptilt = function(x, beta, mix, which=c(1,0,0)) {
   # needs mixture
   pt <- mix$pt
@@ -98,7 +134,8 @@ logd_nptilt = function(x, beta, mix, which=c(1,0,0)) {
 
     res[i, !finite] <- -Inf
     res[i, finite] <- log(x$S0_recur(eval_pts[i,finite])) * exp(x$lin_pred_recur[i]) +
-      eval_pts[i,finite] * omega[i] - log(tilt_sum)
+      pt[finite] * omega[i] - log(tilt_sum)
+
     if (sum(finite) == 0){# no pt is x$time to x$cens interval and x$terminal==1
       res[i, after_terminal] <- -100
     }
@@ -108,8 +145,12 @@ logd_nptilt = function(x, beta, mix, which=c(1,0,0)) {
   if(which[1] == 1) {
     dl$ld = res
   }
+  if(which[2] == 1) {
+    # not implemented yet
+    dl$db = matrix(NA, nrow=n, ncol = k)
+  }
   if(which[3] == 1) {
-    # not implemented, hopefully not needed
+    # not needed
     dl$dt = matrix(NA, nrow=n, ncol = k)
   }
   dl
@@ -121,6 +162,7 @@ loglik_nptilt = function(mix, x, beta=NULL, attr=FALSE) {
   dmix = drop(exp(ld - ma) %*% mix$pr) + 1e-100
   logd = log(dmix) + ma
   ll = sum(weight(x, beta) * logd)
+
   if(attr) {
     attr(ll, "dmix") = dmix
     attr(ll, "logd") = logd    # log(mixture density)
@@ -128,6 +170,68 @@ loglik_nptilt = function(mix, x, beta=NULL, attr=FALSE) {
   ll
 }
 
+# try pushing the sum_tilt denominator to llex
+logd.nptilt = function(x, beta, pt, which=c(1,0,0)) {
+  dl = vector("list", 3)
+  names(dl) = c("ld","db","dt")
+  n = length(x$time)
+  k = length(pt)
+  res <- matrix(NA, nrow=n, ncol = k)
+
+  omega <- c(x$covs_end %*% beta)
+
+  eval_pts <- outer(x$censor, pt, pmin) - matrix(x$time, nrow=n, ncol=k)
+  for (i in 1:n){
+    neg <- eval_pts[i,] < 0
+    after_terminal <- x$terminal[i] & (pt >= x$censor[i])
+    finite <- !neg &  !after_terminal
+
+    res[i, !finite] <- -Inf
+    res[i, finite] <- log(x$S0_recur(eval_pts[i,finite])) * exp(x$lin_pred_recur[i]) +
+      pt[finite] * omega[i]
+    if (sum(finite) == 0){# no pt is x$time to x$cens interval and x$terminal==1
+      res[i, after_terminal] <- -100
+    }
+
+  }
+
+  if(which[1] == 1) {
+    dl$ld = res
+  }
+  if(which[2] == 1) {
+    # derivative of log-density term wrt beta
+    dbres =  array(dim=c(n, k, length(beta)))
+    for (j in 1:length(beta)){
+      dbres[,,j] <- outer(x$covs_end[,j], pt)
+     }
+    dl$db = dbres
+  }
+  if(which[3] == 1) {
+    # not needed
+    dl$dt = matrix(NA, nrow=n, ncol = k)
+  }
+  dl
+}
+
+llex.nptilt = function(x, beta, mix){
+  omega <- c(x$covs_end %*% beta)
+  sum_tilt <- drop(exp(outer(omega, mix$pt)) %*% mix$pr)
+  res <- -sum(weight(x, beta) * log(sum_tilt))
+  res
+}
+
+llexdb.nptilt = function(x, beta, mix){
+  omega <- c(x$covs_end %*% beta)
+  terms <- outer(omega, mix$pt)
+  sum_tilt <- drop(exp(terms) %*% mix$pr)
+  db_sum_tilt = matrix(NA, nrow=length(x), ncol=length(beta))
+  for (j in 1:length(beta)){
+    db_sum_tilt[,j] <- (exp(terms) * outer(x$covs_end[,j], mix$pt)) %*% mix$pr
+  }
+
+  res <- - colSums(weight(x, beta) * db_sum_tilt/sum_tilt)
+  res
+}
 
 # simulate example data with two groups
 ld1 <- 1; ld2 <- 2
@@ -163,13 +267,48 @@ nptilt_a <- nptilt_known_S(trail_a, formula_end = ~Z,
                          formula_recur= Recur(time=time, id=patient.id, event=indicator)~ 1,
                          S0_recur = function(x)pexp(x, rate=lr0, lower=FALSE),
                          coefs_recur = NULL)
-
+init1 <- initial(nptilt_a)
+mix1 <- init1$mix
 loglik_nptilt(mix = mix1, x = nptilt_a, beta = c(0))
 # same as
 loglik(mix1, npkm_a)
 
 loglik_nptilt(mix = mix1, x = nptilt_a, beta = c(-0.2))
-curve(Vectorize(loglik_nptilt, vectorize.args = "beta")(mix = mix1, x = nptilt_a, beta = x), from=-1, to=1)
+curve(Vectorize(loglik_nptilt, vectorize.args = "beta")(mix = mix1, x = nptilt_a, beta = x), from=-1.5, to=1)
+
+# should be same with llex approach
+loglik(mix = mix1, x = nptilt_a, beta = c(-0.2))
+
+# check derivative wrt beta
+nspmix:::dll0(x=nptilt_a, mix=mix1, beta=-0.2, which=c(1,0,0,1))
+eps <- 0.001
+(loglik(mix = mix1, x = nptilt_a, beta = c(-0.2+eps)) - loglik(mix = mix1, x = nptilt_a, beta = c(-0.2-eps)))/(2*eps)
+# extra term
+llexdb(mix = mix1, x = nptilt_a, beta = c(-0.2))
+(llex(mix = mix1, x = nptilt_a, beta = c(-0.2+eps)) - llex(mix = mix1, x = nptilt_a, beta = c(-0.2-eps)))/(2*eps)
+
+# second derivative
+U <- nspmix:::dll0(x=nptilt_a, mix=mix1, beta=0, which=c(0,0,0,1))$db
+I <- - (nspmix:::dll0(x=nptilt_a, mix=mix1, beta=-0+eps, which=c(0,0,0,1))$db -
+    nspmix:::dll0(x=nptilt_a, mix=mix1, beta=-0-eps, which=c(0,0,0,1))$db) / (2*eps)
+U/sqrt(I)
+
+# try optimization
+# profile likelihood? probably not, as llex is ignored
+r0 <- nspmix:::pll(mix0 = mix1, x = nptilt_a, beta = c(-0), model="proportions")
+r1 <- nspmix:::pll(mix0 = mix1, x = nptilt_a, beta = c(-0.7), model="proportions")
+r2 <- nspmix:::pll(mix0 = mix1, x = nptilt_a, beta = c(0.7), model="proportions")
+
+
+beta_vec <- seq(-0.7, -0.6, by=0.005)
+pll_vec <- sapply(beta_vec,
+                  function(b)nspmix:::pll(mix = mix1, x = nptilt_a, beta = b, model="proportions")$ll)
+plot(beta_vec, pll_vec, type="l")
+
+
+
+
+
 
 #####
 npkm_a <- npkm_known_S(trail_a,
