@@ -1,17 +1,16 @@
 # Define object of class 'npkm' for our unobserved end-time model
 # assumes a row per patient with Tmax and C
-# and a proportional hazards model so S_i = S0_i ^ (exp(lin_pred))
-# and S0 - a function that generates gap-time survival probs for this patient
+# lS_fun(i,times) should give log-survival for subject i
 #' @importFrom stats stepfun model.matrix quantile
 #' @importFrom survival basehaz
 #' @importFrom utils tail
 
-npkm <- function(time, censor, terminal, lin_pred, S0, weights = NULL){
-  if ((length(time) != length(censor)) | length(time) != length(lin_pred) | length(time) != length(lin_pred)) {
+npkm <- function(time, censor, terminal, lS_fun, weights = NULL){
+  if ((length(time) != length(censor)) | length(time) != length(terminal)) {
     stop("Arguments should have equal length")
   }
-  if (!is.function(S0)){
-    stop("S0 should be a function")
+  if (!is.function(predfun)){
+    stop("predfun should be a function")
   }
 
   if (is.null(weights)){
@@ -23,67 +22,38 @@ npkm <- function(time, censor, terminal, lin_pred, S0, weights = NULL){
   }
   ak <- sort(unique(time))
 
-  res <- list(time = time, censor = censor, terminal = terminal, lin_pred = lin_pred,
-              S0fun = S0, ak = ak,  weights = weights)
+  res <- list(time = time, censor = censor, terminal = terminal, lS_fun=lS_fun,
+              ak = ak,  weights = weights)
 
   class(res) <- "npkm"
   res
 }
 
-npkm_from_mod <- function(trail_dat, cox_model,  weights = NULL){
-  # compute baseline hazard and linear predictor for trailing gap
-  # Create  model matrix
-  fla <- cox_model$formula
-  X <- stats::model.matrix(fla[-2], data = trail_dat)
-  X <- X[, -1, drop=FALSE]  # Drop intercept
+npkm_from_engine <- function(data, pred_formula, rows_to_predict, engine, weights = NULL){
 
-  # Extract random effects - assumes Cox model has frailty term
-  frailty_term <- attr(cox_model$terms, "specials")$frailty #includes response in counting
-  frailty_col <- cox_model$assign[[frailty_term-1]]
-  random_effects <- cox_model$frail[X[,frailty_col]]
-  X <- X[, -frailty_col, drop=FALSE]
+  fit_data <- data[-rows_to_predict, ,drop=FALSE]
+  mod <- engine$fit(formula = pred_formula, data=fit_data)
 
-  # linear predictor
-  beta <- cox_model$coefficients
-  beta[is.na(beta)] <- 0 # protect from weird NA coefficient from coxph
-  if (is.null(beta)){  # if no predictors
-    lin_pred <- random_effects
-  } else {
-    lin_pred <- X %*% beta + random_effects
-  }
-
-  # create step function for baseline survival
-  cum.base <- survival::basehaz(cox_model, centered = FALSE)
-  cum.base$surv <- exp(-cum.base$hazard)
-  s0_fun <- stats::stepfun(x = c(0,cum.base$time),
-                    y = c(1, cum.base$surv, utils::tail(cum.base$surv,1)*1e-10))
-
+  pred_data <- data[rows_to_predict, ,drop=FALSE]
+  predfun <- engine$predfun_logSurv(fit_obj = mod, newdata = pred_data)
   # Create 'npkm' object
-  mod_npkm <- npkm(time=trail_dat$time1, censor=trail_dat$time2,
-                   terminal=trail_dat$terminal,
-                   lin_pred=drop(lin_pred), s0_fun,
+  mod_npkm <- npkm(time=pred_dat$time1, censor=pred_dat$time2,
+                   terminal=pred_dat$terminal,
+                   lS_fun = predfun,
                    weights = weights)
 
   mod_npkm
 }
 
-npkm_known_S <- function(trail_dat, formula, S0, coefs, weights = NULL){
-  # compute linear predictor for trailing gap
-  # Create  model matrix
-  X <- stats::model.matrix(formula[-2], data = trail_dat)
-  X <- X[, -1, drop=FALSE]  # Drop intercept
+# temporary function that makes fewer changes than npkm_from_engine
+npkm_from_mod <- function(pred_data, model, engine, weights = NULL){
+  # assumes model was fitted by engine
 
-  # linear predictor
-  if (is.null(coefs)){  # if no predictors
-    lin_pred <- rep(0, nrow(X))
-  } else {
-    lin_pred <- X %*% coefs
-  }
-
+  predfun <- engine$predfun_logSurv(fit_obj = model, newdata = pred_data)
   # Create 'npkm' object
-  mod_npkm <- npkm(time=trail_dat$time1, censor=trail_dat$time2,
-                   terminal=trail_dat$terminal,
-                   lin_pred=drop(lin_pred), S0,
+  mod_npkm <- npkm(time=pred_data$time1, censor=pred_data$time2,
+                   terminal=pred_data$terminal,
+                   lS_fun = predfun,
                    weights = weights)
 
   mod_npkm
@@ -147,7 +117,7 @@ logd.npkm = function(x, beta, pt, which=c(1,0,0)) {
     finite <- !neg &  !after_terminal
 
     res[i, !finite] <- -Inf
-    res[i, finite] <- log(x$S0(eval_pts[i,finite])) * exp(x$lin_pred[i])
+    res[i, finite] <- x$lS_fun(i, times=eval_pts[i,finite])
     if (sum(finite) == 0){# no pt is x$time to x$cens interval and x$terminal==1
        res[i, after_terminal] <- -100
     }

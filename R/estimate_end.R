@@ -56,7 +56,8 @@
 estimate_end <- function(formula,
                     method=c("naive", "threshold","quantile", "NPMLE"),
                     threshold = 0, quantile=0.95, data, subset, na.action,
-                    verbose=FALSE, known_recur=NULL, IPSW = FALSE,
+                    verbose=FALSE, engine = coxf_engine(),
+                    known_recur=NULL, IPSW = FALSE,
                     bootCI = FALSE, conf.level = 0.95, bootB = 100){
   method <- match.arg(method)
 
@@ -161,6 +162,13 @@ estimate_end <- function(formula,
   }
 
   if (method == "NPMLE"){
+
+    if (!is.null(known_recur)){
+      warning("'known_recur' argument is deprecated. Use knownS_engine instead.")
+      engine <- knownS_engine(lS0 = function(times){log(known_recur$S0(times))},
+                              coefs = known_recur$coefs)
+    }
+
     # add predictors to Dat - everything on the RHS of 'formula'
     covars <- all.vars(formula[-2])
     if (any(names(Dat) %in% covars))
@@ -182,26 +190,12 @@ estimate_end <- function(formula,
     # data from 'trailing gaps'
     trailDat <- Dat[resp@last_idx,]
 
-    # Fit gap-time model to recurrent event part
-    surv_fla <- stats::update(formula, survival::Surv(time2-time1, event) ~ . + frailty(id))
-    environment(surv_fla) <- list2env(Dat)
+    mod <- engine$fit(formula = formula[-2], data = Dat[-resp@last_idx,])
 
-    if (!is.null(known_recur)){
-      mod_npkm <- npkm_known_S(trail_dat = trailDat, formula = formula,
-                               S0 = known_recur$S0, coefs = known_recur$coefs,
-                               weights = weights)
-      mod <- NULL
-    } else {
-      # ignore warning that is due to approx zero estimate for frailty variance
-      suppressWarnings(
-        mod <- survival::coxph(surv_fla, data=Dat[-resp@last_idx,])
-        #mod <- my_coxph(surv_fla, data=Dat[-resp@last_idx,], weights=.weights)
-      )
+    # Create 'npkm' object
+    mod_npkm <- npkm_from_mod(pred_data = trailDat, model = mod,
+                              engine = engine, weights = weights)
 
-      # Create 'npkm' object
-      mod_npkm <- npkm_from_mod(trail_dat = trailDat, cox_model = mod,
-                                weights = weights)
-    }
     # fit NPMLE
     # ignore warning about zero-probability block
     suppressWarnings(
@@ -258,24 +252,18 @@ estimate_end <- function(formula,
         names(trailDat_b)[names(trailDat_b) == "id"] <- ".origid"
         trailDat_b <- merge(trailDat_b, id_map, by = ".origid", all.x = FALSE, all.y = TRUE)
 
-        if (!is.null(known_recur)){
-          mod_npkm_b <- npkm_known_S(trail_dat = trailDat_b, formula = formula,
-                                   S0 = known_recur$S0, coefs = known_recur$coefs,
-                                   weights = weights[idx])
-        } else {
-          # ignore warning that is due to approx zero estimate for frailty variance
-          environment(surv_fla) <- list2env(Dat_events_b)
-          suppressWarnings(
-            mod_b <- survival::coxph(surv_fla, data=Dat_events_b)
-          )
+        # fit model
+        mod_b <- engine$fit(formula = formula[-2], data = Dat_events_b)
 
-          # Create 'npkm' object
-          mod_npkm_b <- npkm_from_mod(trail_dat = trailDat_b, cox_model = mod_b,
-                                      weights = weights[idx])
-        }
+        # Create 'npkm' object
+        mod_npkm_b <- npkm_from_mod(pred_data = trailDat_b, model = mod_b,
+                                    engine = engine, weights = weights[idx])
+
         # fit NPMLE
-        npmix_fit_b <- nspmix::cnm(mod_npkm_b, init=list(mix=nspmix::disc(mod_npkm_b$ak)),
+        suppressWarnings(
+          npmix_fit_b <- nspmix::cnm(mod_npkm_b, init=list(mix=nspmix::disc(mod_npkm_b$ak)),
                                  model="proportions", plot="null", verbose=verbose)
+        )
 
         res_b <- stats::stepfun(npmix_fit_b$mix$pt, 1-cumsum(c(0, npmix_fit_b$mix$pr)))
         bootres <- c(bootres, list(res_b))

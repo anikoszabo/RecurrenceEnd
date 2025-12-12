@@ -22,21 +22,21 @@ coxf_engine <- function(){
     mod
   }
 
-  predfun_logSurv <- function(cox_model, newdata, ...){
+  predfun_logSurv <- function(fit_obj, newdata, ...){
 
     # Create  model matrix
-    fla <- cox_model$formula
-    X <- stats::model.matrix(surv_fla[-2], data = newdata)
+    fla <- fit_obj$formula
+    X <- stats::model.matrix(fla[-2], data = newdata)
     X <- X[, -1, drop=FALSE]  # Drop intercept
 
     # Extract random effects
-    frailty_term <- attr(cox_model$terms, "specials")$frailty #includes response in counting
-    frailty_col <- cox_model$assign[[frailty_term-1]]
-    random_effects <- cox_model$frail[X[,frailty_col]]
+    frailty_term <- attr(fit_obj$terms, "specials")$frailty #includes response in counting
+    frailty_col <- fit_obj$assign[[frailty_term-1]]
+    random_effects <- fit_obj$frail[X[,frailty_col]]
     X <- X[, -frailty_col, drop=FALSE]
 
     # linear predictor
-    beta <- cox_model$coefficients
+    beta <- fit_obj$coefficients
     beta[is.na(beta)] <- 0 # protect from weird NA coefficient from coxph
     if (is.null(beta)){  # if no predictors
       lin_pred <- random_effects
@@ -45,17 +45,51 @@ coxf_engine <- function(){
     }
 
     # create step function for baseline survival
-    cum.base <- survival::basehaz(cox_model, centered = FALSE)
-    cum.base$surv <- exp(-cum.base$hazard)
-    s0_fun <- stats::stepfun(x = c(0,cum.base$time),
-                             y = c(1, cum.base$surv, utils::tail(cum.base$surv,1)*1e-10))
+    cum.base <- survival::basehaz(fit_obj, centered = FALSE)
+    cum.base$lsurv <- -cum.base$hazard
+    lS0_fun <- stats::stepfun(x = c(0,cum.base$time),
+                             y = c(0, cum.base$lsurv, utils::tail(cum.base$lsurv,1)-10))
 
     resfun <- function(i, times, ...){
-      log(S0_fun(times)) * exp(lin_pred[i])
+      lS0_fun(times) * exp(lin_pred[i])
     }
+    environment(resfun) <- list2env(list(lS0_fun=lS0_fun, lin_pred=lin_pred))
 
     resfun
   }
 
+  list(fit = fit, predfun_logSurv = predfun_logSurv)
+}
 
+#' Cox model with known baseline survival and coefficients engine
+#'
+#' @param lS0 function(times) that gives baseline log-survival at 'times'
+#' @param coefs coefficients of the recurrence model, should match formula
+knownS_engine <- function(lS0, coefs=NULL){
+  fit <- function(formula, data, ...){
+    list(formula = formula)
+  }
+
+  predfun_logSurv <- function(fit_obj, newdata, ...){
+
+    # Create  model matrix
+    formula <- fit_obj$formula
+    X <- stats::model.matrix(formula, data = newdata)
+
+    # linear predictor
+    if (is.null(coefs)){  # if no predictors
+      lin_pred <- rep(0, nrow(X))
+    } else {
+      lin_pred <- X %*% coefs
+    }
+
+    resfun <- function(i, times, ...){
+      lS0(times) * exp(lin_pred[i])
+    }
+    environment(resfun) <- list2env(list(lS0=lS0, lin_pred=lin_pred))
+
+    resfun
+  }
+
+  list(fit = fit, predfun_logSurv = predfun_logSurv)
 }

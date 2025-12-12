@@ -53,8 +53,8 @@ res_np2b <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 
                                            coefs = c(1,-1,1)), IPSW=TRUE)
 
 a0 <- subset(a, indicator==0)
-a0$obs <- pmin(a0$disease_onset, a0$C)
-a0$delta <- ifelse(a0$disease_onset <= a0$C, 1, 0)
+a0$obs <- pmin(a0$recurrence_end, a0$C)
+a0$delta <- ifelse(a0$recurrence_end <= a0$C, 1, 0)
 km <- survfit(Surv(obs, delta) ~ 1, data=a0)
 
 curve(pexp(x, rate=ld0, lower=FALSE), from=0, to=max(a$time[a$indicator==1]),
@@ -91,7 +91,7 @@ lines(res_qboot$ci$upper, do.points=FALSE, col="pink", lty=2)
 # to be terminal events
 set.seed(3456)
 all_pts <- unique(a$patient.id)
-possible_pts <- unique(a$patient.id[a$disease_onset < a$C])
+possible_pts <- unique(a$patient.id[a$recurrence_end < a$C])
 term <- ifelse(all_pts %in% possible_pts,
                rbinom(n = length(possible_pts), size=1, prob = 0.2), 0)
 
@@ -107,5 +107,47 @@ lines(res_q$fit, do.points=FALSE, col="red")
 lines(tres_q$fit, do.points=FALSE, col="pink")
 lines(res_np$fit, do.points=FALSE, col="blue")
 lines(tres_np$fit, do.points=FALSE, col="lightblue")
-lines(tres_np2$fit, do.points=FALSE, col="lightblue", lty=2)
+#lines(tres_np2$fit, do.points=FALSE, col="lightblue", lty=2)
 
+# recurrent event model engine
+ce <- coxf_engine()
+df0 <- model.frame(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2, data=a)
+df1 <- cbind(df0, df0[1]@.Data)
+mod <- ce$fit(~Z.1+Z.2, data=subset(df1, event==1))
+predfun <- ce$predfun_logSurv(fit_obj = mod, newdata = subset(df1, event==0))
+t0 <- seq(0, 2, by=0.1)
+plot(t0, exp(predfun(13, t0)), type="l")
+lines(t0, exp(predfun(5, t0)), col=2)
+
+res_np0 <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
+                        method="NPMLE", data=a, IPSW=FALSE, engine=ce)
+res_np <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2,
+                        method="NPMLE", data=a, IPSW=FALSE)
+res_npb <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2,
+                       method="NPMLE", data=a,  bootCI = TRUE,
+                       bootB = 100)
+plot(res_npb, conf.int = TRUE)
+lines(res_np, col=2)
+lines(res_np0, col=3)
+
+#########
+ks <- knownS_engine(lS0 = function(x)pexp(x, rate=1, lower=FALSE, log=TRUE),
+                     coefs = c(1,-1,1))
+mod2 <- ks$fit(~Z.1+Z.2, data=subset(df1, event==1))
+predfun2 <- ks$predfun_logSurv(fit_obj = mod2, newdata = subset(df1, event==0))
+
+t0 <- seq(0, 2, by=0.1)
+plot(t0, exp(predfun2(13, t0)), type="l")
+lines(t0, exp(predfun2(5, t0)), col=2)
+
+res_ks0 <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
+                        method="NPMLE", data=a,
+                        engine=knownS_engine(lS0 = function(x)pexp(x, rate=ld0, lower=FALSE, log=TRUE)))
+
+res_ks <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2,
+                       method="NPMLE", data=a, engine = ks)
+res_ksb <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2,
+                       method="NPMLE", data=a, engine = ks, bootCI = TRUE, bootB = 10)
+
+plot(res_ksb, conf.int = TRUE)
+lines(res_ks0, col=2)
