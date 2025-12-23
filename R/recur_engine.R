@@ -67,11 +67,14 @@ recur_engine <- function(name, model = NULL, ...){
 #' }
 #' @seealso [recur_predict()], [estimate_end()]
 #' @export
+#' @rdname recur_engine
+#'
 recur_fit <- function(engine, formula, data, ...) {
   UseMethod("recur_fit")
 }
 
 #' @exportS3Method
+#' @rdname recur_engine
 recur_fit.default <- function(engine, formula, data, ...) {
   res <- engine
   res$model <- list(formula = formula)
@@ -107,41 +110,8 @@ recur_fit.default <- function(engine, formula, data, ...) {
 #' }
 #' @seealso [recur_fit()], [estimate_end()]
 #' @export
+#' @rdname recur_engine
 recur_predictfun <- function(engine, newdata,  eventtimes=NULL,
                             type=c("survival", "cumhaz",  "hazard"), log=FALSE) {
   UseMethod("recur_predictfun")
 }
-
-#'
-#' #' Fixed parameter Cox model engine for fitting recurrent event data
-#' #'
-#' #' @param lS0 function(times) that gives baseline log-survival at 'times'
-#' #' @param coefs coefficients of the recurrence model, should match formula
-#' knownS_engine <- function(lS0, coefs=NULL){
-#'   fit <- function(formula, data, ...){
-#'     list(formula = formula)
-#'   }
-#'
-#'   predfun_logSurv <- function(fit_obj, newdata, ...){
-#'
-#'     # Create  model matrix
-#'     formula <- fit_obj$formula
-#'     X <- stats::model.matrix(formula, data = newdata)
-#'
-#'     # linear predictor
-#'     if (is.null(coefs)){  # if no predictors
-#'       lin_pred <- rep(0, nrow(X))
-#'     } else {
-#'       lin_pred <- X %*% coefs
-#'     }
-#'
-#'     resfun <- function(i, times, ...){
-#'       lS0(times) * exp(lin_pred[i])
-#'     }
-#'     environment(resfun) <- list2env(list(lS0=lS0, lin_pred=lin_pred))
-#'
-#'     resfun
-#'   }
-#'
-#'   list(fit = fit, predfun_logSurv = predfun_logSurv)
-#' }

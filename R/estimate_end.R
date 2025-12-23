@@ -164,8 +164,8 @@ estimate_end <- function(formula,
   if (method == "NPMLE"){
 
     if (!is.null(known_recur)){
-      warning("'known_recur' argument is deprecated. Use knownS_engine instead.")
-      engine <- knownS_engine(lS0 = function(times){log(known_recur$S0(times))},
+      warning("'known_recur' argument is deprecated. Use recur_engine_known instead.")
+      engine <- recur_engine("known", H0fun = function(times){-log(known_recur$S0(times))},
                               coefs = known_recur$coefs)
     }
 

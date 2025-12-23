@@ -111,17 +111,17 @@ lines(tres_np$fit, do.points=FALSE, col="lightblue")
 #lines(tres_np2$fit, do.points=FALSE, col="lightblue", lty=2)
 
 # recurrent event model engine
-ce <- coxf_engine()
+ce0 <- recur_engine("coxph")
 df0 <- model.frame(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2, data=a)
 df1 <- cbind(df0, df0[1]@.Data)
-mod <- ce$fit(~Z.1+Z.2, data=subset(df1, event==1))
-predfun <- ce$predfun_logSurv(fit_obj = mod, newdata = subset(df1, event==0))
+ce <- recur_fit(ce0, ~Z.1+Z.2, data=subset(df1, event==1))
+predfun <- recur_predictfun(ce, newdata = subset(df1, event==0), type="survival")
 t0 <- seq(0, 2, by=0.1)
 plot(t0, exp(predfun(13, t0)), type="l")
 lines(t0, exp(predfun(5, t0)), col=2)
 
 res_np0 <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
-                        method="NPMLE", data=a, IPSW=FALSE, engine=ce)
+                        method="NPMLE", data=a, IPSW=FALSE, engine=ce0)
 res_np <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2,
                         method="NPMLE", data=a, IPSW=FALSE)
 res_npb <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2,
@@ -132,10 +132,9 @@ lines(res_np, col=2)
 lines(res_np0, col=3)
 
 #########
-ks <- knownS_engine(lS0 = function(x)pexp(x, rate=1, lower=FALSE, log=TRUE),
-                     coefs = c(1,-1,1))
-mod2 <- ks$fit(~Z.1+Z.2, data=subset(df1, event==1))
-predfun2 <- ks$predfun_logSurv(fit_obj = mod2, newdata = subset(df1, event==0))
+ks <- recur_engine("known", H0fun = function(x)x, coefs = c(-1,1))
+ks2 <- recur_fit(ks, ~Z.1+Z.2, data=subset(df1, event==1))
+predfun2 <- recur_predictfun(ks2, newdata = subset(df1, event==0), type="survival")
 
 t0 <- seq(0, 2, by=0.1)
 plot(t0, exp(predfun2(13, t0)), type="l")
@@ -143,7 +142,7 @@ lines(t0, exp(predfun2(5, t0)), col=2)
 
 res_ks0 <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
                         method="NPMLE", data=a,
-                        engine=knownS_engine(lS0 = function(x)pexp(x, rate=ld0, lower=FALSE, log=TRUE)))
+                        engine=recur_engine("known", H0fun = function(x)ld0*x))
 
 res_ks <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2,
                        method="NPMLE", data=a, engine = ks)

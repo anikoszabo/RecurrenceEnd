@@ -1,4 +1,3 @@
-
 #' @title Fit a Cox PH with frailty engine
 #' @description
 #' S3 method for fitting a Cox proportional hazards model with frailty as the prediction
@@ -19,8 +18,9 @@
 #'                  data = SimulatedData, ties = "efron")
 #' }
 #' @seealso [survival::coxph()], [recur_predict.recur_engine_coxph()]
-##' @export
-##' @method recur_fit recur_engine_coxph
+#' @export
+#' @method recur_fit recur_engine_coxph
+#' @rdname recur_engine_coxph
 recur_fit.recur_engine_coxph <- function(engine, formula, data, ...){
 
   # fit the model
@@ -34,7 +34,7 @@ recur_fit.recur_engine_coxph <- function(engine, formula, data, ...){
 
 
 
-#' @title Create a gap-time prediction funcition for a Cox PH with frailty engine
+#' @title Create a gap-time prediction function for a Cox PH with frailty engine
 #' @inheritParams recur_predictfun
 #' @return A function(index, gaptimes).
 #' @examples
@@ -44,6 +44,7 @@ recur_fit.recur_engine_coxph <- function(engine, formula, data, ...){
 #' survfun(2, gaptimes =seq(0, 2, by = 0.1), type = "survival")
 #' }
 #' @export
+#' @rdname recur_engine_coxph
 
 recur_predictfun.recur_engine_coxph <- function(engine, newdata,  eventtimes=NULL,
                                                 type=c("survival", "cumhaz",  "hazard"), log=FALSE) {
