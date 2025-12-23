@@ -16,7 +16,8 @@
 #' contains NAs. The default is set by the na.action setting of \code{options},
 #' which in turn defaults to \code{na.omit}.
 #' @param verbose logical value, if TRUE then information is displayed during computation
-#' @param known_recur optional list specifying the known recurrence survival distribution
+#' @param engine  an object of class `recur_engine` for fitting the recurrent event model
+#' @param known_recur _deprecated_ optional list specifying the known recurrence survival distribution
 #' function for each subject. It should have two components: \code{S0} - the baseline survival
 #' function, and \code{coefs} - the coefficients of the recurrence model specified in \code{formula}
 #' @param IPSW logical, indicating whether inverse-probability of selection weights based on

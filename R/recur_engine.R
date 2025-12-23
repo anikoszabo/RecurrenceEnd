@@ -92,7 +92,7 @@ recur_fit.default <- function(engine, formula, data, ...) {
 #' @param engine A classed engine object created by [recur_engine()] and
 #'   usually fitted by [recur_fit()].
 #' @param newdata A `data.frame` with covariates for all subjects to be predicted
-#' @param eventtime Numeric vector with the given event time `t` for each observation in `newdata`
+#' @param eventtimes Numeric vector with the given event time `t` for each observation in `newdata`
 #' @param type Character; one of `"survival"`, `"cumhaz"`, or `"hazard"`.
 #' @param log Logical; whether the log-transformed value is required
 #'
@@ -104,7 +104,7 @@ recur_fit.default <- function(engine, formula, data, ...) {
 #'
 #' @examples
 #' \dontrun{
-#' predfun <- recur_predict(eng, newdata = SimulatedData[1:5, ], eventtime = 2,
+#' predfun <- recur_predict(eng, newdata = SimulatedData[1:5, ], eventtimes = 2,
 #'                          type = "survival", log=TRUE)
 #' predfun(2, gaptimes =seq(0, 2, by = 0.1))
 #' }

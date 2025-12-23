@@ -32,7 +32,7 @@ npkm <- function(time, censor, terminal, lS_fun, weights = NULL){
 npkm_from_engine <- function(engine, pred_data, weights = NULL){
 
   lsurv_fun <- recur_predictfun(engine, newdata=pred_data,
-                             eventtime = pred_data$time1,
+                             eventtimes = pred_data$time1,
                              type= "survival", log=TRUE)
   # Create 'npkm' object
   mod_npkm <- npkm(time=pred_data$time1, censor=pred_data$time2,

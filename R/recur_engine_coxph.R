@@ -39,7 +39,7 @@ recur_fit.recur_engine_coxph <- function(engine, formula, data, ...){
 #' @return A function(index, gaptimes).
 #' @examples
 #' \dontrun{
-#' survfun <- recur_predict(eng, newdata = SimulatedData[1:5, ], eventtime = 2,
+#' survfun <- recur_predict(eng, newdata = SimulatedData[1:5, ], eventtimes = 2,
 #'            type = "survival")
 #' survfun(2, gaptimes =seq(0, 2, by = 0.1), type = "survival")
 #' }

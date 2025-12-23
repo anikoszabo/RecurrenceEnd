@@ -11,7 +11,7 @@
 #' @examples
 #' \dontrun{
 #' ke <- recur_engine("known",  H0fun = function(x) 0.5*x)
-#' survfun <- recur_predictfun(ke, newdata = SimulatedData[1:5, ], eventtime = 2,
+#' survfun <- recur_predictfun(ke, newdata = SimulatedData[1:5, ], eventtimes = 2,
 #'            type = "survival")
 #' survfun(2, gaptimes =seq(0, 2, by = 0.1))
 #' }
