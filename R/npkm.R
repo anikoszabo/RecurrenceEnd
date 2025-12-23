@@ -9,8 +9,8 @@ npkm <- function(time, censor, terminal, lS_fun, weights = NULL){
   if ((length(time) != length(censor)) | length(time) != length(terminal)) {
     stop("Arguments should have equal length")
   }
-  if (!is.function(predfun)){
-    stop("predfun should be a function")
+  if (!is.function(lS_fun)){
+    stop("lS_fun should be a function")
   }
 
   if (is.null(weights)){
@@ -29,35 +29,20 @@ npkm <- function(time, censor, terminal, lS_fun, weights = NULL){
   res
 }
 
-npkm_from_engine <- function(data, pred_formula, rows_to_predict, engine, weights = NULL){
+npkm_from_engine <- function(engine, pred_data, weights = NULL){
 
-  fit_data <- data[-rows_to_predict, ,drop=FALSE]
-  mod <- engine$fit(formula = pred_formula, data=fit_data)
-
-  pred_data <- data[rows_to_predict, ,drop=FALSE]
-  predfun <- engine$predfun_logSurv(fit_obj = mod, newdata = pred_data)
-  # Create 'npkm' object
-  mod_npkm <- npkm(time=pred_dat$time1, censor=pred_dat$time2,
-                   terminal=pred_dat$terminal,
-                   lS_fun = predfun,
-                   weights = weights)
-
-  mod_npkm
-}
-
-# temporary function that makes fewer changes than npkm_from_engine
-npkm_from_mod <- function(pred_data, model, engine, weights = NULL){
-  # assumes model was fitted by engine
-
-  predfun <- engine$predfun_logSurv(fit_obj = model, newdata = pred_data)
+  lsurv_fun <- recur_predictfun(engine, newdata=pred_data,
+                             eventtime = pred_data$time1,
+                             type= "survival", log=TRUE)
   # Create 'npkm' object
   mod_npkm <- npkm(time=pred_data$time1, censor=pred_data$time2,
                    terminal=pred_data$terminal,
-                   lS_fun = predfun,
+                   lS_fun = lsurv_fun,
                    weights = weights)
 
   mod_npkm
 }
+
 
 #' @exportS3Method nspmix::length npkm
 length.npkm <- function(x) length(x$time)
@@ -117,7 +102,7 @@ logd.npkm = function(x, beta, pt, which=c(1,0,0)) {
     finite <- !neg &  !after_terminal
 
     res[i, !finite] <- -Inf
-    res[i, finite] <- x$lS_fun(i, times=eval_pts[i,finite])
+    res[i, finite] <- x$lS_fun(i, gaptimes=eval_pts[i,finite])
     if (sum(finite) == 0){# no pt is x$time to x$cens interval and x$terminal==1
        res[i, after_terminal] <- -100
     }

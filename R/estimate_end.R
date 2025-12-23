@@ -56,7 +56,7 @@
 estimate_end <- function(formula,
                     method=c("naive", "threshold","quantile", "NPMLE"),
                     threshold = 0, quantile=0.95, data, subset, na.action,
-                    verbose=FALSE, engine = coxf_engine(),
+                    verbose=FALSE, engine = recur_engine("coxph"),
                     known_recur=NULL, IPSW = FALSE,
                     bootCI = FALSE, conf.level = 0.95, bootB = 100){
   method <- match.arg(method)
@@ -190,11 +190,12 @@ estimate_end <- function(formula,
     # data from 'trailing gaps'
     trailDat <- Dat[resp@last_idx,]
 
-    mod <- engine$fit(formula = formula[-2], data = Dat[-resp@last_idx,])
+    if (is.null(engine$model)){
+      engine <- recur_fit(engine, formula = formula[-2], data = Dat[-resp@last_idx,])
+    }
 
     # Create 'npkm' object
-    mod_npkm <- npkm_from_mod(pred_data = trailDat, model = mod,
-                              engine = engine, weights = weights)
+    mod_npkm <- npkm_from_engine(engine=engine, pred_data = trailDat, weights = weights)
 
     # fit NPMLE
     # ignore warning about zero-probability block
@@ -206,7 +207,7 @@ estimate_end <- function(formula,
     res <- stats::stepfun(npmix_fit$mix$pt, 1-cumsum(c(0, npmix_fit$mix$pr)))
     output <- list(fit = res,
                 method = method,
-                 model = mod)
+                 model = engine$model)
   }
 
   if (bootCI){
@@ -239,6 +240,8 @@ estimate_end <- function(formula,
       boot_times <- npmix_fit$mix$pt # step-points of original fit
       Dat_events <- Dat[-resp@last_idx,]
       bootres <- list()
+      booteng <- engine
+      booteng$model <- NULL  # will need to refit it
       for (b in 1:bootB){
         idx <- sample.int(length(last_event), replace = TRUE)
         # select bootstrapped subjects from Dat_events & trailDat, assigning new IDs
@@ -252,12 +255,9 @@ estimate_end <- function(formula,
         names(trailDat_b)[names(trailDat_b) == "id"] <- ".origid"
         trailDat_b <- merge(trailDat_b, id_map, by = ".origid", all.x = FALSE, all.y = TRUE)
 
-        # fit model
-        mod_b <- engine$fit(formula = formula[-2], data = Dat_events_b)
-
+        booteng <- recur_fit(booteng, formula = formula[-2], data=Dat_events_b)
         # Create 'npkm' object
-        mod_npkm_b <- npkm_from_mod(pred_data = trailDat_b, model = mod_b,
-                                    engine = engine, weights = weights[idx])
+        mod_npkm_b <- npkm_from_engine(engine=booteng, pred_data = trailDat_b, weights = weights[idx])
 
         # fit NPMLE
         suppressWarnings(

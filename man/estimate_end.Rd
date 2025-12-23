@@ -13,6 +13,7 @@ estimate_end(
   subset,
   na.action,
   verbose = FALSE,
+  engine = recur_engine("coxph"),
   known_recur = NULL,
   IPSW = FALSE,
   bootCI = FALSE,

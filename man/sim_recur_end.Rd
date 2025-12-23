@@ -9,10 +9,11 @@ sim_recur_end(
   lambda_d,
   lambda_r,
   sigma2,
-  cov_fun,
-  beta,
   lambda_c,
   C_min = 0,
+  cov_fun = NULL,
+  beta = NULL,
+  censored.ok = TRUE,
   ...
 )
 }
@@ -27,16 +28,20 @@ terminating event}
 \item{sigma2}{numeric value >= 0, variance of gamma-distributed random effect
 for the recurrent event process}
 
-\item{cov_fun}{function of the form \code{function(n,...)} that generates a
-model matrix of covariates for \code{n} subjects}
-
-\item{beta}{numeric vector with the coefficients of the covariates generated
-by \code{cov_fun}}
-
 \item{lambda_c}{numeric value > 0, rate of censoring distribution after minimal
 follow-up time \code{C_min}}
 
 \item{C_min}{numeric value >=0, minimal follow-up time without censoring}
+
+\item{cov_fun}{function of the form \code{function(n,...)} that generates a
+model matrix of covariates for \code{n} subjects. Set to NULL if no covariates
+are used.}
+
+\item{beta}{numeric vector with the coefficients of the covariates generated
+by \code{cov_fun}. Ignored if \code{cov_fun} is NULL.}
+
+\item{censored.ok}{logical, indicating whether subjects with first event censored
+(ie `nevents=0`) should be retained}
 
 \item{...}{optional parameters passed to \code{cov_fun}}
 }
