@@ -40,6 +40,8 @@ fig1 <- ggplot(mean_bias_long, aes(x = QuantileDFpercent, y = Bias,
   scale_color_manual(values = method_colors,
                      breaks = ord,
                      labels = c("Full data", "Naive", expression(tau[0.9]), "NPMLE")) +
+  scale_y_continuous(breaks = seq(-0.2, 0.1, by=0.1)) +
+  guides(color = guide_legend(override.aes = list(shape=NA, linewidth=1))) +
   facet_grid(
     EN ~ mu_d,
     labeller = label_bquote(
@@ -56,9 +58,10 @@ fig1 <- ggplot(mean_bias_long, aes(x = QuantileDFpercent, y = Bias,
        shape = expression(p[c])) +
   theme(axis.text.x = element_text(size = 10),
         axis.text.y = element_text(size = 10),
-        strip.text  = element_text(size = 10))
+        strip.text  = element_text(size = 10),
+        strip.background = element_rect(fill="white"))
 
-pdf("Manuscript/Figures/Simulation1.pdf")
+pdf("Manuscript/Figures/Simulation1.pdf", width=7, height=5)
   fig1
 dev.off()
 
@@ -104,7 +107,7 @@ fig2 <- ggplot(bias_long, aes(x = QuantileDFpercent, y = Bias, fill = Method)) +
                "NPMLE unadjusted", "NPMLE adjusted")
   )
 
-pdf("Manuscript/Figures/Simulation2.pdf")
+pdf("Manuscript/Figures/Simulation2.pdf", width=7, height = 5)
 fig2
 dev.off()
 
@@ -145,7 +148,8 @@ events <- HF_sample |>
 fig3 <- ggplot(events, aes(x=time, y=y_pos)) +
   geom_segment(aes(yend = y_pos, xend = time), x=0, data=line_segments,
                color = "gray80", linewidth = 0.4) +
-  geom_point(color="forestgreen", alpha=0.8) +
+  #geom_point(color="forestgreen", alpha=0.8) +
+  geom_point(color="black", alpha=0.5) +
   scale_x_continuous(
     breaks = seq(0, max(HF$time)),
     limits = c(-1, NA),
@@ -155,11 +159,10 @@ fig3 <- ggplot(events, aes(x=time, y=y_pos)) +
     labels = NULL,
     trans = "reverse") +
   labs(
-    x = "Time Before AL Diagnosis Date (years)",
-    y = "",
-    title = "Recurrent Events Timeline"
+    x = "Time before AL diagnosis date (years)",
+    y = ""
   ) +
-  theme_minimal(base_size = 13) +
+  theme_minimal(base_size = 10) +
   theme(
     plot.title = element_text(hjust = 0.5),
     plot.title.position = "plot",
@@ -181,6 +184,7 @@ dev.off()
 library(grid)
 library(gridExtra)
 library(gridBase)
+library(RecurrenceEnd)
 
 set.seed(42)
 
@@ -230,8 +234,9 @@ tab$Method <- rownames(tab)
 
 pdf("Manuscript/Figures/ALresults.pdf", width = 8, height = 6)
 plot(npmle, do.points = FALSE, ylim = c(0, 1), xaxt = "n", las=1,
-     xlab = "Years", ylab = "Survival Probability",
-     main = "",
+     xlab = "Time before AL diagnosis date (years)",
+     ylab = "Probability of ongoing HF",
+     main = "", bty="n",
      col = method_colors3["NPMLE"],
      conf.int = TRUE,
      conf.col = method_colors3["NPMLE"],
@@ -257,7 +262,7 @@ lines(data_driven_km,
 axis(1, at = seq(0, 4000, by = 365), labels = seq(0, 4000, by = 365) / 365)
 
 legend("bottomleft",
-       legend = c("NPMLE", "Naive", expression(tau[0.9] == 0.4 ~ "years")),
+       legend = c("NPMLE", "Naive", expression(tau[0.9] == 0.5 ~ "years")),
        col    = method_colors3[c("NPMLE", "Naive", "data_driven")],
        lty    = 1, lwd = 2, cex = 0.8, bty = "n")
 
@@ -283,7 +288,7 @@ dev.off()
 #### By gender ###########
 set.seed(42)
 
-method_colors3 <- c(
+method_colors2 <- c(
   "NPMLE.m"     = "#E64B35",  # red (male)
   "NPMLE.f"     = "#00A087"  # teal (male)
 )
@@ -300,19 +305,20 @@ npmle.f <- estimate_end(
 
 pdf("Manuscript/Figures/ALresultsBySex.pdf", width = 8, height = 6)
 plot(npmle.m, do.points = FALSE, ylim = c(0, 1), xaxt = "n", las = 1,
-     xlab = "Years", ylab = "Survival Probability",
-     main = "",
-     col = method_colors3["NPMLE.m"],
+     xlab = "Time before AL diagnosis date (years)",
+     ylab = "Probability of ongoing HF",
+     main = "", bty="n",
+     col = method_colors2["NPMLE.m"],
      conf.int = TRUE,
-     conf.col = method_colors3["NPMLE.m"],
+     conf.col = method_colors2["NPMLE.m"],
      conf.lty = 2,
      #conf.lwd = 1.5,
      lty = 1, lwd = 2)
 
 lines(npmle.f,
-      col = method_colors3["NPMLE.f"],
+      col = method_colors2["NPMLE.f"],
       conf.int = TRUE,
-      conf.col = method_colors3["NPMLE.f"],
+      conf.col = method_colors2["NPMLE.f"],
       conf.lty = 2, #conf.lwd = 1.5,
       lty = 1, lwd = 2)
 
@@ -323,14 +329,14 @@ axis(1, at = seq(0, 4000, by = 365), labels = seq(0, 4000, by = 365) / 365)
 # Add legend
 legend("topright",
        legend = c("NPMLE (Male)", "NPMLE (Female)"),
-       col = method_colors3[c("NPMLE.m","NPMLE.f")],
+       col = method_colors2[c("NPMLE.m","NPMLE.f")],
        lty = 1, lwd = 2, cex = 0.8, bty = "n")
 dev.off()
 
 ######### By age group ######
 set.seed(42)
 
-method_colors3 <- c(
+method_colors2b <- c(
   "NPMLE.ge65"     = "#E64B35",  # red (>=65)
   "NPMLE.lt65"     = "#00A087"  # teal (>=65)
 )
@@ -345,19 +351,20 @@ npmle.lt65 <- estimate_end(Recur(time = time, id = patient.id, event = indicator
 
 pdf("Manuscript/Figures/ALresultsByAge.pdf", width = 8, height = 6)
 plot(npmle.ge65, do.points = FALSE, ylim = c(0, 1), xaxt = "n", las = 1,
-     xlab = "Years", ylab = "Survival Probability",
-     main = "",
-     col = method_colors3["NPMLE.ge65"],
+     xlab = "Time before AL diagnosis date (years)",
+     ylab = "Probability of ongoing HF",
+     main = "", bty="n",
+     col = method_colors2b["NPMLE.ge65"],
      conf.int = TRUE,
-     conf.col = method_colors3["NPMLE.ge65"],
+     conf.col = method_colors2b["NPMLE.ge65"],
      conf.lty = 2,
     # conf.lwd = 1.5,
      lty = 1, lwd = 2)
 
 lines(npmle.lt65,
-      col = method_colors3["NPMLE.lt65"],
+      col = method_colors2b["NPMLE.lt65"],
       conf.int = TRUE,
-      conf.col = method_colors3["NPMLE.lt65"],
+      conf.col = method_colors2b["NPMLE.lt65"],
       conf.lty = 2, #conf.lwd = 1.5,
       lty = 1, lwd = 2)
 
@@ -365,6 +372,6 @@ axis(1, at = seq(0, 4000, by = 365), labels = seq(0, 4000, by = 365) / 365)
 
 legend("topright",
        legend = c("NPMLE (Age ≥ 65)", "NPMLE (Age < 65)"),
-       col = method_colors3[c("NPMLE.ge65","NPMLE.lt65")],
+       col = method_colors2b[c("NPMLE.ge65","NPMLE.lt65")],
        lty = 1, lwd = 2, cex = 0.8, bty = "n")
 dev.off()
