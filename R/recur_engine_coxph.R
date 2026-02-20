@@ -5,8 +5,7 @@
 #' fitted object in `engine$model`.
 #'
 #' @inheritParams recur_fit
-#' @param ties, robust, model, x, y Optional arguments forwarded to
-#'   [survival::coxph()] (if used internally).
+#' @param ...  Optional arguments forwarded to [survival::coxph()], such as `ties`, `robust`.
 #'
 #' @return The updated engine object of class `"recur_engine_coxph"` with
 #'   a fitted model embedded and any engine-specific metadata recorded.
@@ -21,17 +20,18 @@
 #' @export
 #' @method recur_fit recur_engine_coxph
 #' @rdname recur_engine_coxph
-recur_fit.recur_engine_coxph <- function(engine, formula, data, ...){
-
+recur_fit.recur_engine_coxph <- function(engine, formula, data, ...) {
   # fit the model
-  surv_fla <- stats::update(formula, survival::Surv(time2-time1, event) ~ . + frailty(id))
+  surv_fla <- stats::update(
+    formula,
+    survival::Surv(time2 - time1, event) ~ . + frailty(id)
+  )
   environment(surv_fla) <- list2env(data)
-  mod <- survival::coxph(surv_fla, data=data, ...)
+  mod <- survival::coxph(surv_fla, data = data, ...)
 
   engine$model <- mod
   engine
 }
-
 
 
 #' @title Create a gap-time prediction function for a Cox PH with frailty engine
@@ -46,28 +46,36 @@ recur_fit.recur_engine_coxph <- function(engine, formula, data, ...){
 #' @export
 #' @rdname recur_engine_coxph
 
-recur_predictfun.recur_engine_coxph <- function(engine, newdata,  eventtimes=NULL,
-                                                type=c("survival", "cumhaz",  "hazard"), log=FALSE) {
+recur_predictfun.recur_engine_coxph <- function(
+  engine,
+  newdata,
+  eventtimes = NULL,
+  type = c("survival", "cumhaz", "hazard"),
+  log = FALSE
+) {
   model <- engine$model
 
   type <- match.arg(type)
 
   # Create  model matrix
   fla <- model$formula
-  if (length(fla) == 3) {fla <- fla[-2]} # drop lhs
+  if (length(fla) == 3) {
+    fla <- fla[-2]
+  } # drop lhs
   X <- stats::model.matrix(fla, data = newdata)
-  X <- X[, -1, drop=FALSE]  # Drop intercept
+  X <- X[, -1, drop = FALSE] # Drop intercept
 
   # Extract random effects
   frailty_term <- attr(model$terms, "specials")$frailty #includes response in counting
-  frailty_col <- model$assign[[frailty_term-1]]
-  random_effects <- model$frail[X[,frailty_col]]
-  X <- X[, -frailty_col, drop=FALSE]
+  frailty_col <- model$assign[[frailty_term - 1]]
+  random_effects <- model$frail[X[, frailty_col]]
+  X <- X[, -frailty_col, drop = FALSE]
 
   # linear predictor
   beta <- model$coefficients
   beta[is.na(beta)] <- 0 # protect from weird NA coefficient from coxph
-  if (is.null(beta)){  # if no predictors
+  if (is.null(beta)) {
+    # if no predictors
     lin_pred <- random_effects
   } else {
     lin_pred <- X %*% beta + random_effects
@@ -77,24 +85,23 @@ recur_predictfun.recur_engine_coxph <- function(engine, newdata,  eventtimes=NUL
   cum.base <- survival::basehaz(model, centered = FALSE)
   H0_fun <- stats::stepfun(cum.base$time, c(0, cum.base$hazard))
 
-  resfun <- function(index, gaptimes){}
-  if (type == "cumhaz"){
-    body(resfun) <- if (log){
+  resfun <- function(index, gaptimes) {}
+  if (type == "cumhaz") {
+    body(resfun) <- if (log) {
       quote(H0_fun(gaptimes) * exp(lin_pred[index]))
-      } else {
+    } else {
       quote(log(H0_fun(gaptimes)) + exp(lin_pred[index]))
-      }
-  } else if (type == "survival"){
-    body(resfun) <- if (log){
+    }
+  } else if (type == "survival") {
+    body(resfun) <- if (log) {
       quote(-H0_fun(gaptimes) * exp(lin_pred[index]))
     } else {
       quote(exp(-H0_fun(gaptimes) * exp(lin_pred[index])))
     }
-  }  else if (type == "hazard"){
+  } else if (type == "hazard") {
     body(resfun) <- quote(error("Not implemented"))
   }
-  environment(resfun) <- list2env(list(H0_fun=H0_fun, lin_pred=lin_pred))
+  environment(resfun) <- list2env(list(H0_fun = H0_fun, lin_pred = lin_pred))
 
   resfun
 }
-

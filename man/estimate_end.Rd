@@ -45,7 +45,9 @@ which in turn defaults to \code{na.omit}.}
 
 \item{verbose}{logical value, if TRUE then information is displayed during computation}
 
-\item{known_recur}{optional list specifying the known recurrence survival distribution
+\item{engine}{an object of class `recur_engine` for fitting the recurrent event model}
+
+\item{known_recur}{_deprecated_ optional list specifying the known recurrence survival distribution
 function for each subject. It should have two components: \code{S0} - the baseline survival
 function, and \code{coefs} - the coefficients of the recurrence model specified in \code{formula}}
 

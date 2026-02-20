@@ -1,4 +1,3 @@
-
 #' Estimate the distribution of the ending event of a recurrent event process
 #'
 #' @param formula a two-sided formula with a \code{\link[reda]{Recur}} object specifying the
@@ -51,199 +50,275 @@
 #'                       method="NPMLE", bootCI=TRUE, bootB=5, data=SimulatedData)
 #' plot(res_npb, conf.int=TRUE)
 
-
-
-
-estimate_end <- function(formula,
-                    method=c("naive", "threshold","quantile", "NPMLE"),
-                    threshold = 0, quantile=0.95, data, subset, na.action,
-                    verbose=FALSE, engine = recur_engine("coxph"),
-                    known_recur=NULL, IPSW = FALSE,
-                    bootCI = FALSE, conf.level = 0.95, bootB = 100){
+estimate_end <- function(
+  formula,
+  method = c("naive", "threshold", "quantile", "NPMLE"),
+  threshold = 0,
+  quantile = 0.95,
+  data,
+  subset,
+  na.action,
+  verbose = FALSE,
+  engine = recur_engine("coxph"),
+  known_recur = NULL,
+  IPSW = FALSE,
+  bootCI = FALSE,
+  conf.level = 0.95,
+  bootB = 100
+) {
   method <- match.arg(method)
 
   # based on reda::rateReg
-  if (missing(formula))
+  if (missing(formula)) {
     stop("Argument 'formula' is required.")
-  if (missing(data))
+  }
+  if (missing(data)) {
     data <- environment(formula)
+  }
   if (!missing(subset)) {
     sSubset <- substitute(subset)
     subIdx <- eval(sSubset, data, parent.frame())
-    if (!is.logical(subIdx))
+    if (!is.logical(subIdx)) {
       stop("'subset' must be logical")
+    }
     subIdx <- subIdx & !is.na(subIdx)
     data <- data[subIdx, ]
   }
   mcall <- match.call(expand.dots = FALSE)
-  mmcall <- match(c("formula", "data", "na.action"), names(mcall),
-                  0L)
+  mmcall <- match(c("formula", "data", "na.action"), names(mcall), 0L)
   mcall <- mcall[c(1L, mmcall)]
   mcall$data <- data
   mcall$drop.unused.levels <- TRUE
   mcall[[1L]] <- quote(stats::model.frame)
   mf <- eval(mcall, parent.frame())
   resp <- stats::model.extract(mf, "response")
-  if (!reda::is.Recur(resp))
+  if (!reda::is.Recur(resp)) {
     stop("Response in the formula must be a 'Recur' object.")
+  }
 
   if (length(na.action <- attr(mf, "na.action"))) {
-    if (verbose)
-      message("Observations with missing value in covariates ",
-              "are removed.\nChecking the new dataset again...\n",
-              appendLF = FALSE)
+    if (verbose) {
+      message(
+        "Observations with missing value in covariates ",
+        "are removed.\nChecking the new dataset again...\n",
+        appendLF = FALSE
+      )
+    }
     resp <- reda::check_Recur(resp, check = "hard")
   }
 
   Dat <- as.data.frame(resp@.Data)
   # arrange data into nice order
   ord <- resp@ord
-  Dat <- Dat[ord,]
+  Dat <- Dat[ord, ]
 
   # create indicators for largest event time, latest time-point (censoring time)
   # allow for no-event intervals within the recurrent event process
-  events <- Dat$event==1
+  events <- Dat$event == 1
   nevents <- tapply(events, Dat["id"], sum)
-  if (any(nevents == 0)){
+  if (any(nevents == 0)) {
     stop("All subjects must to have at least one observed recurrent event")
   }
-  last_event_idx <- tapply(seq_len(nrow(Dat)), Dat["id"],
-                           function(x)max(x[events[x]]))
+  last_event_idx <- tapply(seq_len(nrow(Dat)), Dat["id"], function(x) {
+    max(x[events[x]])
+  })
   last_event <- Dat$time2[last_event_idx]
-  last_time <- Dat$time2[resp@last_idx]  # censoring times
+  last_time <- Dat$time2[resp@last_idx] # censoring times
   terminal <- resp@.Data[resp@last_idx, "terminal"] # is the last censoring time a terminal event
 
-  if (IPSW){
-    first_event_idx <- tapply(seq_len(nrow(Dat)), Dat["id"],
-                             function(x)min(x[events[x]]))
+  if (IPSW) {
+    first_event_idx <- tapply(seq_len(nrow(Dat)), Dat["id"], function(x) {
+      min(x[events[x]])
+    })
     first_event <- Dat$time2[first_event_idx]
-    G_cens <- function(t){mean(t <= last_time)}
+    G_cens <- function(t) {
+      mean(t <= last_time)
+    }
     p_select <- sapply(first_event, G_cens)
-    weights <- 1/p_select
+    weights <- 1 / p_select
     Dat$.weights <- weights[Dat[["id"]]]
   } else {
     weights <- NULL
     Dat$.weights <- 1
   }
 
-  if (method == "naive"){
-    res <- survival::survfit(survival::Surv(last_event) ~ 1, weights = weights,
-                             conf.int = conf.level)
-    output <- list(fit = survfit_to_survfun(res),
-                ci = survfitCI_to_survfun(res),
-                method = method)
-  }
-  if (method == "threshold"){
-    if (!isTRUE(threshold >= 0)) stop("'threshold' should be a positive number")
+  if (method == "naive") {
     res <- survival::survfit(
-      survival::Surv(last_event, last_time-last_event >= threshold | terminal) ~ 1,
-      weights = weights,  conf.int = conf.level)
-    output <- list(fit = survfit_to_survfun(res),
-                ci = survfitCI_to_survfun(res),
-                method = method,
-                threshold = threshold)
+      survival::Surv(last_event) ~ 1,
+      weights = weights,
+      conf.int = conf.level
+    )
+    output <- list(
+      fit = survfit_to_survfun(res),
+      ci = survfitCI_to_survfun(res),
+      method = method
+    )
   }
-  if (method == "quantile"){
-    if (!isTRUE(quantile > 0 & quantile < 1))
+  if (method == "threshold") {
+    if (!isTRUE(threshold >= 0)) {
+      stop("'threshold' should be a positive number")
+    }
+    res <- survival::survfit(
+      survival::Surv(
+        last_event,
+        last_time - last_event >= threshold | terminal
+      ) ~ 1,
+      weights = weights,
+      conf.int = conf.level
+    )
+    output <- list(
+      fit = survfit_to_survfun(res),
+      ci = survfitCI_to_survfun(res),
+      method = method,
+      threshold = threshold
+    )
+  }
+  if (method == "quantile") {
+    if (!isTRUE(quantile > 0 & quantile < 1)) {
       stop("'quantile' should be between 0 and 1 (exclusive)")
+    }
     # estimate gap-time distribution to recurrent event part
-    gap_fit <- survival::survfit(survival::Surv(time2 - time1, event) ~ 1,
-                                 data = Dat[-resp@last_idx,],
-                                 weights=Dat[-resp@last_idx,]$.weights)
+    gap_fit <- survival::survfit(
+      survival::Surv(time2 - time1, event) ~ 1,
+      data = Dat[-resp@last_idx, ],
+      weights = Dat[-resp@last_idx, ]$.weights
+    )
     thresh <- stats::quantile(gap_fit, probs = quantile, conf.int = FALSE)
     res <- survival::survfit(
-      survival::Surv(last_event, last_time-last_event >= thresh | terminal) ~ 1,
-                     weights = weights,  conf.int = conf.level)
+      survival::Surv(
+        last_event,
+        last_time - last_event >= thresh | terminal
+      ) ~ 1,
+      weights = weights,
+      conf.int = conf.level
+    )
 
-    output <- list(fit = survfit_to_survfun(res),
-                ci = survfitCI_to_survfun(res),
-                method = method,
-                quantile = quantile,
-                threshold = thresh)
+    output <- list(
+      fit = survfit_to_survfun(res),
+      ci = survfitCI_to_survfun(res),
+      method = method,
+      quantile = quantile,
+      threshold = thresh
+    )
   }
 
-  if (method == "NPMLE"){
-
-    if (!is.null(known_recur)){
-      warning("'known_recur' argument is deprecated. Use recur_engine_known instead.")
-      engine <- recur_engine("known", H0fun = function(times){-log(known_recur$S0(times))},
-                              coefs = known_recur$coefs)
+  if (method == "NPMLE") {
+    if (!is.null(known_recur)) {
+      warning(
+        "'known_recur' argument is deprecated. Use recur_engine_known instead."
+      )
+      engine <- recur_engine(
+        "known",
+        H0fun = function(times) {
+          -log(known_recur$S0(times))
+        },
+        coefs = known_recur$coefs
+      )
     }
 
     # add predictors to Dat - everything on the RHS of 'formula'
     covars <- all.vars(formula[-2])
-    if (any(names(Dat) %in% covars))
-      stop(paste("Please avoid using '", toString(names(Dat)), "' as predictor names in 'formula'"))
-
-    if (length(na.action)>0 & inherits(na.action, "omit")){
-      Dat <- cbind(Dat, data[-na.action, ][ord,covars,drop=FALSE])
-    } else {
-     Dat <- cbind(Dat, data[ord,covars,drop=FALSE])
+    if (any(names(Dat) %in% covars)) {
+      stop(paste(
+        "Please avoid using '",
+        toString(names(Dat)),
+        "' as predictor names in 'formula'"
+      ))
     }
 
-   # check for only one 'trailing' event
+    if (length(na.action) > 0 & inherits(na.action, "omit")) {
+      Dat <- cbind(Dat, data[-na.action, ][ord, covars, drop = FALSE])
+    } else {
+      Dat <- cbind(Dat, data[ord, covars, drop = FALSE])
+    }
+
+    # check for only one 'trailing' event
     next_to_last <- (resp@last_idx - 1)[resp@last_idx > resp@first_idx]
-    if (!all(events[next_to_last]))
+    if (!all(events[next_to_last])) {
       stop("There should be only one censored interval after the last event")
+    }
 
     tmax_unique <- sort(unique(last_event))
 
     # data from 'trailing gaps'
-    trailDat <- Dat[resp@last_idx,]
+    trailDat <- Dat[resp@last_idx, ]
 
-    if (is.null(engine$model)){
-      engine <- recur_fit(engine, formula = formula[-2], data = Dat[-resp@last_idx,])
+    if (is.null(engine$model)) {
+      engine <- recur_fit(
+        engine,
+        formula = formula[-2],
+        data = Dat[-resp@last_idx, ]
+      )
     }
 
     # Create 'npkm' object
-    mod_npkm <- npkm_from_engine(engine=engine, pred_data = trailDat, weights = weights)
+    mod_npkm <- npkm_from_engine(
+      engine = engine,
+      pred_data = trailDat,
+      weights = weights
+    )
 
     # fit NPMLE
     # ignore warning about zero-probability block
     suppressWarnings(
-      npmix_fit <- nspmix::cnm(mod_npkm, init=list(mix=nspmix::disc(mod_npkm$ak)),
-                       model="proportions", plot="null", verbose=verbose)
+      npmix_fit <- nspmix::cnm(
+        mod_npkm,
+        init = list(mix = nspmix::disc(mod_npkm$ak)),
+        model = "proportions",
+        plot = "null",
+        verbose = verbose
+      )
     )
 
-    res <- stats::stepfun(npmix_fit$mix$pt, 1-cumsum(c(0, npmix_fit$mix$pr)))
-    output <- list(fit = res,
-                method = method,
-                 model = engine$model)
+    res <- stats::stepfun(npmix_fit$mix$pt, 1 - cumsum(c(0, npmix_fit$mix$pr)))
+    output <- list(fit = res, method = method, model = engine$model)
   }
 
-  if (bootCI){
-    if (method %in% c("threshold", "naive", "quantile")){
-      thresh <- switch(method, naive = 0, threshold = threshold,
-                       quantile = NA)
+  if (bootCI) {
+    if (method %in% c("threshold", "naive", "quantile")) {
+      thresh <- switch(method, naive = 0, threshold = threshold, quantile = NA)
       boot_times <- res$time # step-points of original fit
       bootres <- list()
-      for (b in 1:bootB){
+      for (b in 1:bootB) {
         idx <- sample.int(length(last_event), replace = TRUE)
-        if (method == "quantile"){
+        if (method == "quantile") {
           last_event_id <- Dat$id[last_event_idx]
-          Dat_events_b <- merge(Dat[-resp@last_idx,],
-                                data.frame(id = last_event_id[idx]))
+          Dat_events_b <- merge(
+            Dat[-resp@last_idx, ],
+            data.frame(id = last_event_id[idx])
+          )
           # re-estimate quantile
-          gap_fit_b <- survival::survfit(survival::Surv(time2 - time1, event) ~ 1,
-                                     data = Dat_events_b,
-                                     weights=Dat_events_b$.weights)
-          thresh <- stats::quantile(gap_fit_b, probs = quantile, conf.int = FALSE)
+          gap_fit_b <- survival::survfit(
+            survival::Surv(time2 - time1, event) ~ 1,
+            data = Dat_events_b,
+            weights = Dat_events_b$.weights
+          )
+          thresh <- stats::quantile(
+            gap_fit_b,
+            probs = quantile,
+            conf.int = FALSE
+          )
         }
 
         res_b <- survival::survfit(
-          survival::Surv(last_event[idx], last_time[idx]-last_event[idx] >= thresh ) ~ 1,
-                         weights = weights[idx],  conf.int = conf.level)
+          survival::Surv(
+            last_event[idx],
+            last_time[idx] - last_event[idx] >= thresh
+          ) ~ 1,
+          weights = weights[idx],
+          conf.int = conf.level
+        )
 
         bootres <- c(bootres, list(survfit_to_survfun(res_b)))
       }
     }
-    if (method == "NPMLE"){
+    if (method == "NPMLE") {
       boot_times <- npmix_fit$mix$pt # step-points of original fit
-      Dat_events <- Dat[-resp@last_idx,]
+      Dat_events <- Dat[-resp@last_idx, ]
       bootres <- list()
       booteng <- engine
-      booteng$model <- NULL  # will need to refit it
-      for (b in 1:bootB){
+      booteng$model <- NULL # will need to refit it
+      for (b in 1:bootB) {
         idx <- sample.int(length(last_event), replace = TRUE)
         # select bootstrapped subjects from Dat_events & trailDat, assigning new IDs
         last_event_id <- Dat$id[last_event_idx]
@@ -251,22 +326,50 @@ estimate_end <- function(formula,
         id_map <- data.frame(.origid = last_event_id[idx], id = newid)
         Dat_events_b <- Dat_events
         names(Dat_events_b)[names(Dat_events_b) == "id"] <- ".origid"
-        Dat_events_b <- merge(Dat_events_b, id_map, by = ".origid", all.x = FALSE, all.y = TRUE)
+        Dat_events_b <- merge(
+          Dat_events_b,
+          id_map,
+          by = ".origid",
+          all.x = FALSE,
+          all.y = TRUE
+        )
         trailDat_b <- trailDat
         names(trailDat_b)[names(trailDat_b) == "id"] <- ".origid"
-        trailDat_b <- merge(trailDat_b, id_map, by = ".origid", all.x = FALSE, all.y = TRUE)
+        trailDat_b <- merge(
+          trailDat_b,
+          id_map,
+          by = ".origid",
+          all.x = FALSE,
+          all.y = TRUE
+        )
 
-        booteng <- recur_fit(booteng, formula = formula[-2], data=Dat_events_b)
+        booteng <- recur_fit(
+          booteng,
+          formula = formula[-2],
+          data = Dat_events_b
+        )
         # Create 'npkm' object
-        mod_npkm_b <- npkm_from_engine(engine=booteng, pred_data = trailDat_b, weights = weights[idx])
+        mod_npkm_b <- npkm_from_engine(
+          engine = booteng,
+          pred_data = trailDat_b,
+          weights = weights[idx]
+        )
 
         # fit NPMLE
         suppressWarnings(
-          npmix_fit_b <- nspmix::cnm(mod_npkm_b, init=list(mix=nspmix::disc(mod_npkm_b$ak)),
-                                 model="proportions", plot="null", verbose=verbose)
+          npmix_fit_b <- nspmix::cnm(
+            mod_npkm_b,
+            init = list(mix = nspmix::disc(mod_npkm_b$ak)),
+            model = "proportions",
+            plot = "null",
+            verbose = verbose
+          )
         )
 
-        res_b <- stats::stepfun(npmix_fit_b$mix$pt, 1-cumsum(c(0, npmix_fit_b$mix$pr)))
+        res_b <- stats::stepfun(
+          npmix_fit_b$mix$pt,
+          1 - cumsum(c(0, npmix_fit_b$mix$pr))
+        )
         bootres <- c(bootres, list(res_b))
       }
     }
@@ -278,5 +381,3 @@ estimate_end <- function(formula,
   class(output) <- c(class(output), "survfun")
   output
 }
-
-

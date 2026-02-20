@@ -18,44 +18,51 @@
 #' @export
 #' @rdname recur_engine_known
 
-recur_predictfun.recur_engine_known <- function(engine, newdata,  eventtimes=NULL,
-                                                type=c("survival", "cumhaz",  "hazard"), log=FALSE) {
+recur_predictfun.recur_engine_known <- function(
+  engine,
+  newdata,
+  eventtimes = NULL,
+  type = c("survival", "cumhaz", "hazard"),
+  log = FALSE
+) {
   model <- engine$model
 
   type <- match.arg(type)
 
   # Create  model matrix
   fla <- model$formula
-  if (length(fla) == 3) {fla <- fla[-2]} # drop lhs
+  if (length(fla) == 3) {
+    fla <- fla[-2]
+  } # drop lhs
   X <- stats::model.matrix(fla, data = newdata)
-  X <- X[, -1, drop=FALSE]  # Drop intercept
+  X <- X[, -1, drop = FALSE] # Drop intercept
 
   # linear predictor
-  if (is.null(engine$coefs)){  # if no predictors
+  if (is.null(engine$coefs)) {
+    # if no predictors
     lin_pred <- rep(0, nrow(X))
   } else {
     lin_pred <- X %*% engine$coefs
   }
 
   H0_fun <- engine$H0fun
-  resfun <- function(index, gaptimes){}
-  if (type == "cumhaz"){
-    body(resfun) <- if (log){
+  resfun <- function(index, gaptimes) {}
+  if (type == "cumhaz") {
+    body(resfun) <- if (log) {
       quote(H0_fun(gaptimes) * exp(lin_pred[index]))
-      } else {
+    } else {
       quote(log(H0_fun(gaptimes)) + exp(lin_pred[index]))
-      }
-  } else if (type == "survival"){
-    body(resfun) <- if (log){
+    }
+  } else if (type == "survival") {
+    body(resfun) <- if (log) {
       quote(-H0_fun(gaptimes) * exp(lin_pred[index]))
     } else {
       quote(exp(-H0_fun(gaptimes) * exp(lin_pred[index])))
     }
-  }  else if (type == "hazard"){
+  } else if (type == "hazard") {
     body(resfun) <- quote(error("Not implemented"))
   }
-  environment(resfun) <- list2env(list(H0_fun=H0_fun, lin_pred=lin_pred))
+  environment(resfun) <- list2env(list(H0_fun = H0_fun, lin_pred = lin_pred))
 
   resfun
 }
-

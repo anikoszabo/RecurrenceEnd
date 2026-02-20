@@ -47,11 +47,11 @@ See \code{\link[reda]{Recur-class}} for more information}
 
 \item{newdata}{A `data.frame` with covariates for all subjects to be predicted}
 
+\item{eventtimes}{Numeric vector with the given event time `t` for each observation in `newdata`}
+
 \item{type}{Character; one of `"survival"`, `"cumhaz"`, or `"hazard"`.}
 
 \item{log}{Logical; whether the log-transformed value is required}
-
-\item{eventtime}{Numeric vector with the given event time `t` for each observation in `newdata`}
 }
 \value{
 An S3 object of class `c(paste0("recur_engine_", name), "recur_engine")`
@@ -97,7 +97,7 @@ eng <- recur_engine("coxph")
 eng <- recur_fit(eng,  ~ Z1 + Z2, data = SimulatedData)
 }
 \dontrun{
-predfun <- recur_predict(eng, newdata = SimulatedData[1:5, ], eventtime = 2,
+predfun <- recur_predict(eng, newdata = SimulatedData[1:5, ], eventtimes = 2,
                          type = "survival", log=TRUE)
 predfun(2, gaptimes =seq(0, 2, by = 0.1))
 }

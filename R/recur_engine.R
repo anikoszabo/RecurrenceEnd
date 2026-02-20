@@ -29,9 +29,11 @@
 #' @seealso [recur_fit()],[recur_predictfun()], [estimate_end()]
 #
 
-recur_engine <- function(name, model = NULL, ...){
-  structure(list(name = name, model=model,  ...),
-            class = c(paste0("recur_engine_", name), "recur_engine"))
+recur_engine <- function(name, model = NULL, ...) {
+  structure(
+    list(name = name, model = model, ...),
+    class = c(paste0("recur_engine_", name), "recur_engine")
+  )
 }
 
 
@@ -111,7 +113,12 @@ recur_fit.default <- function(engine, formula, data, ...) {
 #' @seealso [recur_fit()], [estimate_end()]
 #' @export
 #' @rdname recur_engine
-recur_predictfun <- function(engine, newdata,  eventtimes=NULL,
-                            type=c("survival", "cumhaz",  "hazard"), log=FALSE) {
+recur_predictfun <- function(
+  engine,
+  newdata,
+  eventtimes = NULL,
+  type = c("survival", "cumhaz", "hazard"),
+  log = FALSE
+) {
   UseMethod("recur_predictfun")
 }

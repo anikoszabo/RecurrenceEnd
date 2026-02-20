@@ -18,6 +18,8 @@ usually fitted by [recur_fit()].}
 
 \item{newdata}{A `data.frame` with covariates for all subjects to be predicted}
 
+\item{eventtimes}{Numeric vector with the given event time `t` for each observation in `newdata`}
+
 \item{type}{Character; one of `"survival"`, `"cumhaz"`, or `"hazard"`.}
 
 \item{log}{Logical; whether the log-transformed value is required}
@@ -38,7 +40,7 @@ The following additional items need to be present in the engine:
 \examples{
 \dontrun{
 ke <- recur_engine("known",  H0fun = function(x) 0.5*x)
-survfun <- recur_predictfun(ke, newdata = SimulatedData[1:5, ], eventtime = 2,
+survfun <- recur_predictfun(ke, newdata = SimulatedData[1:5, ], eventtimes = 2,
            type = "survival")
 survfun(2, gaptimes =seq(0, 2, by = 0.1))
 }

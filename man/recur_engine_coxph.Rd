@@ -31,16 +31,15 @@ usually fitted by [recur_fit()].}
   }
 See \code{\link[reda]{Recur-class}} for more information}
 
-\item{...}{Additional arguments passed to the model}
+\item{...}{Optional arguments forwarded to [survival::coxph()], such as `ties`, `robust`.}
 
 \item{newdata}{A `data.frame` with covariates for all subjects to be predicted}
+
+\item{eventtimes}{Numeric vector with the given event time `t` for each observation in `newdata`}
 
 \item{type}{Character; one of `"survival"`, `"cumhaz"`, or `"hazard"`.}
 
 \item{log}{Logical; whether the log-transformed value is required}
-
-\item{ties, }{robust, model, x, y Optional arguments forwarded to
-[survival::coxph()] (if used internally).}
 }
 \value{
 The updated engine object of class `"recur_engine_coxph"` with
@@ -60,7 +59,7 @@ eng <- recur_fit(eng, Recur(time = time, id = patient.id, event = indicator) ~ Z
                  data = SimulatedData, ties = "efron")
 }
 \dontrun{
-survfun <- recur_predict(eng, newdata = SimulatedData[1:5, ], eventtime = 2,
+survfun <- recur_predict(eng, newdata = SimulatedData[1:5, ], eventtimes = 2,
            type = "survival")
 survfun(2, gaptimes =seq(0, 2, by = 0.1), type = "survival")
 }
