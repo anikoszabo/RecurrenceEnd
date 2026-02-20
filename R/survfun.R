@@ -36,25 +36,47 @@
 #' # values at specific time-point
 #' predict(res_q, times = c(0.5, 1, 1.5))
 #'
-plot.survfun <- function(x, conf.int = FALSE, ylim = c(0,1), conf.lty = 2,
-                         conf.col = 1, do.points = FALSE, main = "",
-                         xlab = "Time", ylab = "Survival function",...){
-  plot(x$fit, do.points=do.points, ylim = ylim, main=main, xlab=xlab, ylab=ylab, ...)
-  if (conf.int & !is.null(x$ci)){
-    lines(x$ci$lower, do.points=do.points, col=conf.col, lty=conf.lty)
-    lines(x$ci$upper, do.points=do.points, col=conf.col, lty=conf.lty)
+plot.survfun <- function(
+  x,
+  conf.int = FALSE,
+  ylim = c(0, 1),
+  conf.lty = 2,
+  conf.col = 1,
+  do.points = FALSE,
+  main = "",
+  xlab = "Time",
+  ylab = "Survival function",
+  ...
+) {
+  plot(
+    x$fit,
+    do.points = do.points,
+    ylim = ylim,
+    main = main,
+    xlab = xlab,
+    ylab = ylab,
+    ...
+  )
+  if (conf.int & !is.null(x$ci)) {
+    lines(x$ci$lower, do.points = do.points, col = conf.col, lty = conf.lty)
+    lines(x$ci$upper, do.points = do.points, col = conf.col, lty = conf.lty)
   }
 }
 
 #' @rdname survfun
 #' @importFrom graphics lines
 #' @export
-lines.survfun <- function(x, conf.int = FALSE, conf.lty = 2,
-                         conf.col = 1, ...){
-  lines(x$fit, do.points=FALSE,  ...)
-  if (conf.int & !is.null(x$ci)){
-    lines(x$ci$lower, do.points=FALSE, col=conf.col, lty=conf.lty)
-    lines(x$ci$upper, do.points=FALSE, col=conf.col, lty=conf.lty)
+lines.survfun <- function(
+  x,
+  conf.int = FALSE,
+  conf.lty = 2,
+  conf.col = 1,
+  ...
+) {
+  lines(x$fit, do.points = FALSE, ...)
+  if (conf.int & !is.null(x$ci)) {
+    lines(x$ci$lower, do.points = FALSE, col = conf.col, lty = conf.lty)
+    lines(x$ci$upper, do.points = FALSE, col = conf.col, lty = conf.lty)
   }
 }
 
@@ -63,12 +85,12 @@ lines.survfun <- function(x, conf.int = FALSE, conf.lty = 2,
 #' Defaults to all jump-points of the function.
 #' @importFrom stats predict
 #' @export
-predict.survfun <- function(object, times = NULL, conf.int = FALSE, ...){
-  if (is.null(times)){
+predict.survfun <- function(object, times = NULL, conf.int = FALSE, ...) {
+  if (is.null(times)) {
     times <- get("x", envir = environment(object$fit))
   }
   res <- list(time = times, pred = object$fit(times))
-  if (conf.int & !is.null(object$ci)){
+  if (conf.int & !is.null(object$ci)) {
     ci <- list(lower = object$ci$lower(times), upper = object$ci$upper(times))
     res <- c(res, ci)
   }
@@ -79,16 +101,21 @@ predict.survfun <- function(object, times = NULL, conf.int = FALSE, ...){
 #' @param probs numeric vector of probabilities. Defaults to all quartiles.
 #' @importFrom stats quantile
 #' @export
-quantile.survfun <- function(x, probs = c(0.25, 0.5, 0.75), conf.int=TRUE, ...){
+quantile.survfun <- function(
+  x,
+  probs = c(0.25, 0.5, 0.75),
+  conf.int = TRUE,
+  ...
+) {
   # create fake survfit object
-  time <-  get("x", envir = environment(x$fit))
-  surv <-  get("y", envir = environment(x$fit))
-  sf <- list(time = time, surv=surv)
+  time <- get("x", envir = environment(x$fit))
+  surv <- get("y", envir = environment(x$fit))
+  sf <- list(time = time, surv = surv)
 
-  if (conf.int & !is.null(x$ci)){
+  if (conf.int & !is.null(x$ci)) {
     lower <- get("y", envir = environment(x$ci$lower))
     upper <- get("y", envir = environment(x$ci$upper))
-    sf <- c(sf, list(lower=lower, upper=upper))
+    sf <- c(sf, list(lower = lower, upper = upper))
   }
   class(sf) <- "survfit"
 
@@ -100,7 +127,6 @@ quantile.survfun <- function(x, probs = c(0.25, 0.5, 0.75), conf.int=TRUE, ...){
 #' @param na.rm logical, required as part of the generic for \code{median}. Ignored.
 #' @importFrom stats median
 #' @export
-median.survfun <- function(x, na.rm = FALSE, conf.int=TRUE, ...){
+median.survfun <- function(x, na.rm = FALSE, conf.int = TRUE, ...) {
   quantile(x, probs = 0.5, conf.int = conf.int, ...)
 }
-
