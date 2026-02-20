@@ -1,5 +1,5 @@
 # Simulation Study
-
+#devtools::install_github("anikoszabo/RecurrenceEnd@v0.1")
 library(RecurrenceEnd)
 library(doParallel)
 library(foreach)
