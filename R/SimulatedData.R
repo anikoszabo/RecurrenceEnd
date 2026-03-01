@@ -1,10 +1,15 @@
 #' Simulated dataset with terminating recurrent event process
 #'
-#' The data set contains simulated recurrent event times for 96 subjects.
+#' The \code{SimulatedData} data set contains simulated recurrent event times for 100 subjects.
 #' It was generated using the \code{\link{sim_recur_end}} function. The
 #' underlying distribution of the terminating event is Exp(1).
 #'
-#' @format A data frame with 448 rows and 5 variables:
+#' The \code{SimulatedData_recur} data set is a reformatted version of the same
+#' data that was processed by \code{\link[reda]{Recur}}. This format is expected
+#' by the fitting engine \code{\link{recur_fit}}.
+
+#'
+#' @format \code{SimulatedData}: A data frame with 489 rows and 5 variables:
 #' \describe{
 #'   \item{patient.id}{int Patient ID}
 #'   \item{time}{dbl Observation time of a recurrent event or censoring}
@@ -12,5 +17,21 @@
 #'   \item{Z.1}{int Binary predictor of recurrent event intensity}
 #'   \item{Z.2}{dbl Continuous predictor of recurrent event intensity}
 #'   }
+#'
+#'
+#' @format \code{SimulatedData_recur}: A data frame with 489 rows and 8 variables:
+#' \describe{
+#'   \item{time1}{dbl Start of the at-risk window}
+#'   \item{time2}{dbl End of the at-risk window}
+#'   \item{id}{int Patient ID}
+#'   \item{event}{int Event indicator. 1 - recurrent event, 0 - censoring}
+#'   \item{terminal}{int Terminal event indicator. Always 0 in this dataset}
+#'   \item{origin}{dbl Time origin for each subject. Always 0 in this dataset}
+#'   \item{Z.1}{int Binary predictor of recurrent event intensity}
+#'   \item{Z.2}{dbl Continuous predictor of recurrent event intensity}
+#'   }
 
 "SimulatedData"
+
+#' @rdname SimulatedData
+"SimulatedData_recur"

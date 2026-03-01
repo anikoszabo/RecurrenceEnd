@@ -17,7 +17,7 @@ Authors@R: c(
     person("Duo", "Yu", , "duoyu@mcw.edu", role = "aut")
   )
 Depends: 
-    R (>= 2.10),
+    R (>= 3.5),
     reda,
     survival
 Imports: 

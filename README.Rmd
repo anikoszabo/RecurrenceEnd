@@ -59,7 +59,8 @@ end-time. The NPMLE method is recommended, the others are ad-hoc methods impleme
 
 ```{r FitModel}
 res_np <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1+Z.2, 
-                       data = SimulatedData, bootCI = TRUE, bootB = 100)
+                       data = SimulatedData, bootCI = TRUE, bootB = 50, 
+                       method="NPMLE")
 
 plot(res_np, col="blue", conf.int = TRUE, conf.lty=3, conf.col="blue")
 ```

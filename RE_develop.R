@@ -19,11 +19,14 @@ desc::desc_add_author("Duo", "Yu", "duoyu@mcw.edu", role = c("aut"))
 use_readme_rmd()
 
 usethis::use_data_raw(name = "SimulatedData")
+usethis::use_data_raw(name = "SimulatedData_recur")
 
 re <- as.package(".")
-load_all(re)
 document(re)
-run_examples()
+load_all(re)
+options(warn = 2) # turn warnings into errors to identify any source of warnings
+  run_examples(run_dontrun = TRUE)
+options(warn =0)
 
 build_readme()
 check(re)

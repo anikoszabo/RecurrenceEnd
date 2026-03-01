@@ -45,7 +45,7 @@ which in turn defaults to \code{na.omit}.}
 
 \item{verbose}{logical value, if TRUE then information is displayed during computation}
 
-\item{engine}{an object of class `recur_engine` for fitting the recurrent event model}
+\item{engine}{an object of class \code{recur_engine} for fitting the recurrent event model}
 
 \item{known_recur}{_deprecated_ optional list specifying the known recurrence survival distribution
 function for each subject. It should have two components: \code{S0} - the baseline survival
@@ -74,7 +74,7 @@ res_n <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
 median(res_n)
 # Threshold estimator using the 99th quantile of the recurrent event distribution
 res_q <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
-                     method="quantile", data=SimulatedData, quantile=0.99)
+         method="quantile", data=SimulatedData, quantile=0.99)
 quantile(res_q)
 # NPMLE estimator, adjusting for covariates in the recurrent event estimation
 res_np <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2,
@@ -86,6 +86,7 @@ res_npb <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 +
 plot(res_npb, conf.int=TRUE)
 }
 \seealso{
-[median()], [quantile()], [predict()], and [plot()] for
+\code{\link{median.survfun}}, \code{\link{quantile.survfun}},
+\code{\link{predict.survfun}}, and \code{\link{plot.survfun}} for
 working with the objects of class 'survfun'
 }

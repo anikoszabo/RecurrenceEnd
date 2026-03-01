@@ -15,7 +15,7 @@
 #' contains NAs. The default is set by the na.action setting of \code{options},
 #' which in turn defaults to \code{na.omit}.
 #' @param verbose logical value, if TRUE then information is displayed during computation
-#' @param engine  an object of class `recur_engine` for fitting the recurrent event model
+#' @param engine  an object of class \code{recur_engine} for fitting the recurrent event model
 #' @param known_recur _deprecated_ optional list specifying the known recurrence survival distribution
 #' function for each subject. It should have two components: \code{S0} - the baseline survival
 #' function, and \code{coefs} - the coefficients of the recurrence model specified in \code{formula}
@@ -30,7 +30,8 @@
 #' @importFrom stats stepfun model.frame model.extract update quantile
 #' @importFrom survival survfit coxph Surv
 #' @importFrom reda is.Recur check_Recur Recur
-#' @seealso [median()], [quantile()], [predict()], and [plot()] for
+#' @seealso \code{\link{median.survfun}}, \code{\link{quantile.survfun}},
+#' \code{\link{predict.survfun}}, and \code{\link{plot.survfun}} for
 #' working with the objects of class 'survfun'
 #' @examples
 #' # Naive estimator
@@ -39,7 +40,7 @@
 #' median(res_n)
 #' # Threshold estimator using the 99th quantile of the recurrent event distribution
 #' res_q <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ 1,
-#'                      method="quantile", data=SimulatedData, quantile=0.99)
+#'          method="quantile", data=SimulatedData, quantile=0.99)
 #' quantile(res_q)
 #' # NPMLE estimator, adjusting for covariates in the recurrent event estimation
 #' res_np <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1 + Z.2,
@@ -343,11 +344,13 @@ estimate_end <- function(
           all.y = TRUE
         )
 
+        suppressWarnings(
         booteng <- recur_fit(
           booteng,
           formula = formula[-2],
           data = Dat_events_b
-        )
+        ))
+
         # Create 'npkm' object
         mod_npkm_b <- npkm_from_engine(
           engine = booteng,

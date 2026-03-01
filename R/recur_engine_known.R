@@ -1,22 +1,23 @@
-#' @title Create a gap-time prediction function for a known model engine
-#' @inheritParams recur_predictfun
-#' @return A function(index, gaptimes).
+# Create a gap-time prediction function for the known model engine
+#' @description \code{recur_predictfun.recur_engine_known} is the S3 method for
+#' creating a prediction function for a Cox regression model with a known baseline function.
 #' @details
-#' The following additional items need to be present in the engine:
+#' For \code{recur_predictfun.recur_engine_known} the following additional items need to
+#' be present in the engine:
 #' \describe{
-#' \item{`H0fun`}{a function giving the baseline gap-time cumulative hazard function}
-#' \item{`coefs`}{optional numeric vector of coefficients used for the Cox model}
+#' \item{H0fun}{a function giving the baseline gap-time cumulative hazard function}
+#' \item{coefs}{optional numeric vector of coefficients used for the Cox model}
 #' }
 #'
 #' @examples
-#' \dontrun{
-#' ke <- recur_engine("known",  H0fun = function(x) 0.5*x)
+#' ke <- recur_engine("known",  H0fun = function(x) 0.5*x) |>
+#'    recur_fit(~1)  # no predictors
 #' survfun <- recur_predictfun(ke, newdata = SimulatedData[1:5, ], eventtimes = 2,
 #'            type = "survival")
 #' survfun(2, gaptimes =seq(0, 2, by = 0.1))
-#' }
+#'
 #' @export
-#' @rdname recur_engine_known
+#' @rdname recur_predictfun
 
 recur_predictfun.recur_engine_known <- function(
   engine,

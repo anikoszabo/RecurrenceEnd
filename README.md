@@ -4,6 +4,7 @@
 # RecurrenceEnd
 
 <!-- badges: start -->
+
 <!-- badges: end -->
 
 The goal of RecurrenceEnd is to implement several non-parametric methods
@@ -45,18 +46,24 @@ covariates that affect the rate of the recurrent event process.
 ``` r
 SimulatedData[SimulatedData$patient.id %in% c(5,6,7),]
 #>    patient.id       time indicator Z.1        Z.2
-#> 9           5 0.11015772         1   1 0.04779898
-#> 10          5 2.58148406         0   1 0.04779898
-#> 11          6 0.05351576         1   0 0.98247007
-#> 12          6 0.07074261         1   0 0.98247007
-#> 13          6 0.23804787         1   0 0.98247007
-#> 14          6 0.24731123         1   0 0.98247007
-#> 15          6 2.05339473         0   0 0.98247007
-#> 16          7 0.03134527         1   0 1.01133452
-#> 17          7 0.07553212         1   0 1.01133452
-#> 18          7 0.08562227         1   0 1.01133452
-#> 19          7 0.26163282         1   0 1.01133452
-#> 20          7 1.23582969         0   0 1.01133452
+#> 25          5 0.05351576         1   1 0.04779898
+#> 26          5 5.01451459         0   1 0.04779898
+#> 27          6 0.03134527         1   0 0.98247007
+#> 28          6 0.13323338         1   0 0.98247007
+#> 29          6 0.23782361         1   0 0.98247007
+#> 30          6 0.29015648         1   0 0.98247007
+#> 31          6 0.33696037         1   0 0.98247007
+#> 32          6 0.41951277         1   0 0.98247007
+#> 33          6 0.43688110         1   0 0.98247007
+#> 34          6 0.44779014         1   0 0.98247007
+#> 35          6 0.85480934         1   0 0.98247007
+#> 36          6 0.89867815         1   0 0.98247007
+#> 37          6 1.77427821         0   0 0.98247007
+#> 38          7 0.24106241         1   0 1.01133452
+#> 39          7 0.31224971         1   0 1.01133452
+#> 40          7 0.32755919         1   0 1.01133452
+#> 41          7 0.43923456         1   0 1.01133452
+#> 42          7 1.47966919         0   0 1.01133452
 ```
 
 We can visualize the data to get a better understanding of its
@@ -84,7 +91,8 @@ ad-hoc methods implemented for comparison.
 
 ``` r
 res_np <- estimate_end(Recur(time=time, id=patient.id, event=indicator) ~ Z.1+Z.2, 
-                       data = SimulatedData, bootCI = TRUE, bootB = 100)
+                       data = SimulatedData, bootCI = TRUE, bootB = 50, 
+                       method="NPMLE")
 
 plot(res_np, col="blue", conf.int = TRUE, conf.lty=3, conf.col="blue")
 ```
@@ -102,25 +110,25 @@ predict(res_np, times=1, conf.int = TRUE)
 #> [1] 1
 #> 
 #> $pred
-#> [1] 0.2395833
+#> [1] 0.3844874
 #> 
 #> $lower
-#> [1] 0.1666667
+#> [1] 0.2829808
 #> 
 #> $upper
-#> [1] 0.3125
+#> [1] 0.4774988
 
 # median ending time
 median(res_np, conf.int=TRUE)
 #> $quantile
-#>       50 
-#> 0.516364 
+#>        50 
+#> 0.7829867 
 #> 
 #> $lower
 #>        50 
-#> 0.3878086 
+#> 0.5809653 
 #> 
 #> $upper
 #>        50 
-#> 0.7548213
+#> 0.9056862
 ```

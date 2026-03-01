@@ -1,30 +1,20 @@
-#' @title Fit a Cox PH with frailty engine
+#' Fit a Cox frailty model for the coxph engine
 #' @description
-#' S3 method for fitting a Cox proportional hazards model with frailty as the prediction
-#' engine. Uses \pkg{survival} to fit the model and stores the
-#' fitted object in `engine$model`.
-#'
-#' @inheritParams recur_fit
-#' @param ...  Optional arguments forwarded to [survival::coxph()], such as `ties`, `robust`.
-#'
-#' @return The updated engine object of class `"recur_engine_coxph"` with
-#'   a fitted model embedded and any engine-specific metadata recorded.
+#' \code{recur_fit.recur_engine_coxph} is the S3 method for fitting a Cox proportional hazards model with frailty as the prediction
+#' engine. It uses \pkg{survival} to fit the model and stores the
+#' fitted object in \code{engine$model}.
 #'
 #' @examples
-#' \dontrun{
 #' eng <- recur_engine("coxph")
-#' eng <- recur_fit(eng, Recur(time = time, id = patient.id, event = indicator) ~ Z1 + Z2,
-#'                  data = SimulatedData, ties = "efron")
-#' }
-#' @seealso [survival::coxph()], [recur_predict.recur_engine_coxph()]
+#' eng <- recur_fit(eng, ~ Z.1 + Z.2,data = SimulatedData_recur, ties = "efron")
 #' @export
 #' @method recur_fit recur_engine_coxph
-#' @rdname recur_engine_coxph
+#' @rdname recur_fit
 recur_fit.recur_engine_coxph <- function(engine, formula, data, ...) {
   # fit the model
   surv_fla <- stats::update(
     formula,
-    survival::Surv(time2 - time1, event) ~ . + frailty(id)
+    survival::Surv(time2 - time1, event) ~ . + frailty(id, sparse=TRUE)
   )
   environment(surv_fla) <- list2env(data)
   mod <- survival::coxph(surv_fla, data = data, ...)
@@ -33,18 +23,22 @@ recur_fit.recur_engine_coxph <- function(engine, formula, data, ...) {
   engine
 }
 
-
-#' @title Create a gap-time prediction function for a Cox PH with frailty engine
-#' @inheritParams recur_predictfun
-#' @return A function(index, gaptimes).
+#' Create a gap-time prediction function for the Cox frailty model engine
+#' @description \code{recur_predictfun.recur_engine_coxph} is the S3 method for
+#' creating a prediction function based on a fitted Cox proportional hazards model
+#' with frailty.
+#'
 #' @examples
-#' \dontrun{
-#' survfun <- recur_predict(eng, newdata = SimulatedData[1:5, ], eventtimes = 2,
+#' eng <- recur_engine("coxph") |>
+#'   recur_fit(formula= ~ Z.1 + Z.2,data = SimulatedData_recur)
+#' nd <- data.frame(id = 1:4, Z.1 = c(0,0,1,1), Z.2 = c(0, 0.1, 0.2, 0.4))
+#' survfun <- recur_predictfun(eng, newdata = nd, eventtimes = 2,
 #'            type = "survival")
-#' survfun(2, gaptimes =seq(0, 2, by = 0.1), type = "survival")
-#' }
+#' # predict for row 2 in 'nd'
+#' survfun(2, gaptimes =seq(0, 2, by = 0.1))
+#'
 #' @export
-#' @rdname recur_engine_coxph
+#' @rdname recur_predictfun
 
 recur_predictfun.recur_engine_coxph <- function(
   engine,
