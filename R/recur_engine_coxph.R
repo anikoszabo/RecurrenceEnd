@@ -28,6 +28,11 @@ recur_fit.recur_engine_coxph <- function(engine, formula, data, ...) {
 #' creating a prediction function based on a fitted Cox proportional hazards model
 #' with frailty.
 #'
+#' @details
+#' For \code{recur_predictfun.recur_engine_coxph}, \code{newdata} should contain
+#' an \code{id} column with numeric subject IDs for lookup of the corresponding
+#' frailty term.
+#'
 #' @examples
 #' eng <- recur_engine("coxph") |>
 #'   recur_fit(formula= ~ Z.1 + Z.2,data = SimulatedData_recur)

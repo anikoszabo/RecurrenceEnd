@@ -38,8 +38,7 @@ SimulatedData_recur
 The \code{SimulatedData} data set contains simulated recurrent event times for 100 subjects.
 It was generated using the \code{\link{sim_recur_end}} function. The
 underlying distribution of the terminating event is Exp(1).
-}
-\details{
+
 The \code{SimulatedData_recur} data set is a reformatted version of the same
 data that was processed by \code{\link[reda]{Recur}}. This format is expected
 by the fitting engine \code{\link{recur_fit}}.

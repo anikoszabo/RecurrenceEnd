@@ -65,6 +65,10 @@ with frailty.
 creating a prediction function for a Cox regression model with a known baseline function.
 }
 \details{
+For \code{recur_predictfun.recur_engine_coxph}, \code{newdata} should contain
+an \code{id} column with numeric subject IDs for lookup of the corresponding
+frailty term.
+
 For \code{recur_predictfun.recur_engine_known} the following additional items need to
 be present in the engine:
 \describe{

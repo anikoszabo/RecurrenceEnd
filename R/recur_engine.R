@@ -49,7 +49,6 @@ recur_engine <- function(name, model = NULL, ...) {
 #'   class \code{recur_engine_coxph}.
 #' @param formula A one-sided model formula with predictors (\code{~ covariates}).
 #' @param data A data.frame containing variables referenced by \code{formula} and the following variables:
-#' @param ... Additional arguments passed to the model.
 #' \describe{
 #'   \item{time1}{the beginning of time segments;}
 #'   \item{time2}{the end of time segments;}
@@ -57,6 +56,7 @@ recur_engine <- function(name, model = NULL, ...) {
 #'   \item{event}{event indicator;}
 #'   \item{terminal}{indicator of terminal event}
 #'   }
+#' @param ... Additional arguments passed to the model.
 #' Typically, it will be created by a call to \code{\link[reda]{Recur}}. See
 #' \code{\link[reda]{Recur-class}} for more information.
 #'
@@ -67,8 +67,9 @@ recur_engine <- function(name, model = NULL, ...) {
 #' containing only the \code{formula} argument passed to it.
 #'
 #' @examples
-#' eng <- recur_engine(name = "coxph")
-#' eng <- recur_fit(eng,  ~ Z.1 + Z.2, data = SimulatedData_recur)
+#' eng <- recur_engine(name = "myname")
+#' eng <- recur_fit(eng,  ~ X) # uses default method
+#' eng
 #'
 #' @seealso \code{\link{recur_engine}} for defining engines, and
 #' \code{\link{recur_predictfun}} for an additional method that needs to be defined
