@@ -82,6 +82,7 @@ loglik_nptilt = function(mix, x, beta = NULL, attr = FALSE) {
 }
 
 # simulate example data with two groups
+set.seed(1)
 ld1 <- 1
 ld2 <- 2
 lr0 <- 5
@@ -121,7 +122,10 @@ trail_a <- a[a$event == 0, ]
 # fit 1-sample curve
 ks <- recur_engine("known", H0fun = function(x) lr0 * x) |>
   recur_fit(~1, data = subset(a, event == 1))
-npkm_a <- npkm_from_engine(pred_data = trail_a, engine = ks)
+ce <- recur_engine("coxph") |>
+  recur_fit(~1, data = subset(a, event == 1))
+
+npkm_a <- npkm_from_engine(pred_data = trail_a, engine = ce)
 
 mix0 <- disc(npkm_a$ak)
 fit_a <- cnm(
@@ -137,7 +141,7 @@ mix1 <- fit_a$mix
 # two-sample explorations
 nptilt_a <- nptilt_from_engine(
   pred_data = trail_a,
-  engine = ks,
+  engine = ce,
   formula_end = ~Z
 )
 
@@ -175,7 +179,7 @@ llexdb(mix = mix1, x = nptilt_a, beta = c(-0.2))
 
 
 # second derivative
-U <- nspmix:::dll0(x = nptilt_a, mix = mix1, beta = 0, which = c(0, 0, 0, 1))$db
+U <- nspmix:::dll0(x = nptilt_a, mix = mix10, beta = 0, which = c(0, 0, 0, 1))$db
 I <- -(nspmix:::dll0(
   x = nptilt_a,
   mix = mix1,
@@ -193,31 +197,63 @@ U / sqrt(I)
 
 
 ## Two predictors
+set.seed(2)
 a$Z2 <- rnorm(nrow(a)) # an extra covariate with coef = 0
+trail_a <- a[a$event == 0, ]
 
 nptilt_b <- nptilt_from_engine(
   pred_data = trail_a,
-  engine = ks,
+  engine = ce,
   formula_end = ~ Z + Z2
 )
 
-loglik(mix = mix1, x = nptilt_b, beta = c(-0.2, 0))
+init1b <- initial(nptilt_b)
+mix1b <- init1b$mix
+
+loglik(mix = mix1b, x = nptilt_b, beta = c(0, 0))
 # same as
-loglik(mix = mix1, x = nptilt_a, beta = c(-0.2))
+loglik(mix = mix1b, x = nptilt_a, beta = 0)
 
 # check derivative wrt beta2
 nspmix:::dll0(
   x = nptilt_b,
-  mix = mix1,
-  beta = c(-0.2, 0),
+  mix = mix1b,
+  beta = c(0, 0),
   which = c(1, 0, 0, 1)
 )
 eps <- 0.001
-(loglik(mix = mix1, x = nptilt_b, beta = c(-0.2, eps)) -
-  loglik(mix = mix1, x = nptilt_b, beta = c(-0.2, -eps))) /
+(loglik(mix = mix1, x = nptilt_b, beta = c(0, eps)) -
+  loglik(mix = mix1, x = nptilt_b, beta = c(0, -eps))) /
   (2 * eps)
 
-## Second derivative?
+## Second derivative
+#[1,]
+(nspmix:::dll0(
+  x = nptilt_b,
+  mix = mix1b,
+  beta = c(0+eps, 0),
+  which = c(1, 0, 0, 1)
+)$db -
+  nspmix:::dll0(
+    x = nptilt_b,
+    mix = mix1b,
+    beta = c(0-eps, 0),
+    which = c(1, 0, 0, 1)
+  )$db )/(2*eps)
+
+#[2,]
+(nspmix:::dll0(
+  x = nptilt_b,
+  mix = mix1b,
+  beta = c(0, 0+eps),
+  which = c(1, 0, 0, 1)
+)$db -
+    nspmix:::dll0(
+      x = nptilt_b,
+      mix = mix1b,
+      beta = c(0, 0-eps),
+      which = c(1, 0, 0, 1)
+    )$db )/(2*eps)
 
 ###########
 # try optimization
