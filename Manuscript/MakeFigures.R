@@ -5,13 +5,17 @@ library(tidyr)
 #########################
 # Simulation 1 figure
 ########################
-load("Manuscript/Data/Simulation1.RData")
+load("Manuscript/Data/Simulation1_nsim500_boot100.RData")
 
 mean_bias_long <- avebias_res1 |>
-  pivot_longer(cols = c(`Q25%`, `Q50%`, `Q75%`),
-               names_to = "Quantile",
-               values_to = "Bias") |>
-  mutate(QuantileSF = as.numeric(substr(Quantile, 2, 3)), # for survival function
+  rename(`Q75%_Coverage` = `Coverage_Q75%`,
+         `Q50%_Coverage` = `Coverage_Q50%`,
+         `Q25%_Coverage` = `Coverage_Q25%`) |>
+  pivot_longer(starts_with("Q"), names_to = c("Quantile", ".value"),
+               names_sep = "_") |>
+  mutate(SD = sqrt(Variance),
+         Coverage = 100 * Coverage,
+         QuantileSF = as.numeric(substr(Quantile, 2, 3)), # for survival function
          QuantileDF = 100 - QuantileSF, # for distribution function
          QuantileDFpercent = paste0(QuantileDF, "%"))
 
@@ -27,64 +31,114 @@ method_colors <- c(
 
 ord <- c("Full data", "Naive", "Threshold", "NPMLE")
 
-fig1 <- ggplot(mean_bias_long, aes(x = QuantileDFpercent, y = Bias,
-                           color = Method,
-                           linetype = factor(p_c),
-                           shape = factor(p_c),
-                           group = interaction(Method, p_c))) +
-  geom_point(position = position_dodge(width = 0.3), size = 2.5, alpha = 0.9) +
-  geom_line(position = position_dodge(width = 0.3)) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "black") +
-  scale_linetype_manual(values = linetype_vals) +
-  scale_shape_manual(values = shape_vals) +
-  scale_color_manual(values = method_colors,
+metric_label <- function(metric) {
+  if_else(metric == "Coverage",
+         "Coverage (%)",
+         if_else(metric == "SD", "Empirical SD", metric))
+}
+add_reference <- function(p, metric) {
+  if (metric == "Bias") p <- p + geom_hline(yintercept = 0, linetype = "dotted")
+  if (metric == "Coverage") {
+    p <- p + geom_hline(yintercept = 95, linetype = "dotted")
+  }
+  p
+}
+
+plot_study1 <- function(metric){
+  d <- mean_bias_long
+  d$value <- d[[metric]]
+  p <- d |>
+    ggplot(aes(x = QuantileDFpercent,
+               y = value,
+               color = Method,
+               linetype = factor(p_c),
+               shape = factor(p_c),
+               group = interaction(Method, p_c)))
+  p <- add_reference(p, metric) +
+    geom_point(position = position_dodge(width = 0.3), size = 2.5, alpha = 0.9) +
+    geom_line(position = position_dodge(width = 0.3)) +
+    scale_linetype_manual(values = linetype_vals) +
+    scale_shape_manual(values = shape_vals) +
+    scale_color_manual(values = method_colors,
                      breaks = ord,
                      labels = c("Full data", "Naive", expression(tau[0.9]), "NPMLE")) +
-  scale_y_continuous(breaks = seq(-0.2, 0.1, by=0.1)) +
-  guides(color = guide_legend(override.aes = list(shape=NA, linewidth=1))) +
-  facet_grid(
-    EN ~ mu_d,
-    labeller = label_bquote(
-      rows = N(D) == .(EN),
-      cols = mu[d] == .(mu_d)
-    ),
-    scales = "fixed"
-  ) +
-  theme_bw() +
-  labs(x = "Quantile",
-       y = "Bias",
-       color = "Method",
-       linetype = expression(p[c]),
-       shape = expression(p[c])) +
-  theme(axis.text.x = element_text(size = 10),
-        axis.text.y = element_text(size = 10),
-        strip.text  = element_text(size = 10),
-        strip.background = element_rect(fill="white"))
+    scale_y_continuous(limits = ~ range(c(0, .x))) +
+    guides(color = guide_legend(override.aes = list(shape=NA, linewidth=1))) +
+    facet_grid(
+      EN ~ mu_d,
+      labeller = label_bquote(
+        rows = N(D) == .(EN),
+        cols = mu[d] == .(mu_d)
+      ),
+      scales = "fixed"
+    ) +
+    theme_bw() +
+    labs(x = "Evaluation percentile of D",
+         y = metric_label(metric),
+         color = "Method",
+         linetype = expression(p[c]),
+         shape = expression(p[c])) +
+    theme(axis.text.x = element_text(size = 10),
+          axis.text.y = element_text(size = 10),
+          strip.text  = element_text(size = 10),
+          strip.background = element_rect(fill="white"))
+    p
+}
 
-pdf("Manuscript/Figures/Simulation1.pdf", width=7, height=5)
-  fig1
+fig1_bias <- plot_study1("Bias")
+fig1_sd <- plot_study1("SD")
+fig1_rmse <- plot_study1("RMSE")
+fig1_cov <- plot_study1("Coverage")
+
+pdf("Manuscript/Figures/Simulation1_bias.pdf", width=7, height=5)
+  fig1_bias
+dev.off()
+
+
+pdf("Manuscript/Figures/Simulation1_sd.pdf", width=7, height=5)
+fig1_sd
+dev.off()
+
+
+pdf("Manuscript/Figures/Simulation1_rmse.pdf", width=7, height=5)
+fig1_rmse
+dev.off()
+
+
+pdf("Manuscript/Figures/Simulation1_cov.pdf", width=7, height=5)
+fig1_cov
 dev.off()
 
 #########################
 # Simulation 2 figure
 ########################
-load("Manuscript/Data/Simulation2.RData")
+load("Manuscript/Data/Simulation2_nsim500_boot100.RData")
 
 ord <- c("Full data", "Naive", "Threshold",
          "NPMLE unadjusted", "NPMLE adjusted")
 
-bias_long <- bias_res2 |>
-  pivot_longer(cols = c(`Q25%`, `Q50%`, `Q75%`),
-               names_to = "Quantile",
-               values_to = "Bias") |>
-  dplyr::mutate(
-    Method   = factor(Method, levels = ord),
-    QuantileSF = as.numeric(substr(Quantile, 2, 3)), # for survival function
-    QuantileDF = 100 - QuantileSF, # for distribution function
-    QuantileDFpercent = paste0(QuantileDF, "%") |>
-      factor(levels = c("25%","50%","75%"))
-  )
+bias_long <- avebias_res2 |>
+  rename(`Q75%_Coverage` = `Coverage_Q75%`,
+         `Q50%_Coverage` = `Coverage_Q50%`,
+         `Q25%_Coverage` = `Coverage_Q25%`) |>
+  pivot_longer(starts_with("Q"), names_to = c("Quantile", ".value"),
+               names_sep = "_") |>
+  mutate(Method   = factor(Method, levels = ord),
+         SD = sqrt(Variance),
+         Coverage = 100 * Coverage,
+         QuantileSF = as.numeric(substr(Quantile, 2, 3)), # for survival function
+         QuantileDF = 100 - QuantileSF, # for distribution function
+         QuantileDFpercent = paste0(QuantileDF, "%"))
 
+bias_extra_long <- bias_long |>
+  pivot_longer(c(Bias, SD, RMSE, Coverage),
+               names_to = "Metric", values_to = "value") |>
+  mutate(Metric = metric_label(Metric))
+
+ref_data <- data.frame(
+  Metric = metric_label(c("Bias", "Coverage")),
+  Ref = c(0, 95)
+)
 
 method_colors2 <- c(
   "NPMLE unadjusted" = "#E64B35",
@@ -94,18 +148,29 @@ method_colors2 <- c(
   "NPMLE adjusted"   = "#F39B7F"
 )
 
+fig2 <- bias_extra_long |>
+  ggplot(aes(x = QuantileDFpercent, y = value, color = Method)) +
+  facet_wrap(~Metric, nrow = 2, scales="free_y") +
+  geom_hline(aes(yintercept = Ref), linetype = "dotted", data=ref_data) +
+  geom_point(size = 2.5, alpha = 0.9) +
+  geom_line(aes(group = Method)) +
+  scale_linetype_manual(values = linetype_vals) +
+  scale_color_manual(values = method_colors2,
+                     limits = ord, breaks = ord,
+                     labels = c("Full data", "Naive", expression(tau[0.9]),
+                                "NPMLE unadjusted", "NPMLE adjusted")) +
+  scale_y_continuous(limits = ~ range(c(0, .x))) +
+  guides(color = guide_legend(override.aes = list(shape=NA, linewidth=1))) +
+  theme_bw() +
+  labs(x = "Evaluation percentile of D",
+       y = "",
+       color = "Method") +
+  theme(axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        strip.text  = element_text(size = 10),
+        strip.background = element_rect(fill="white"))
 
-fig2 <- ggplot(bias_long, aes(x = QuantileDFpercent, y = Bias, fill = Method)) +
-  geom_boxplot() +
-  geom_hline(yintercept = 0, color = "blue", linetype = "dashed", linewidth = 1) +
-  labs(x = "Quantile", y = "Bias", fill = "Method") +
-  theme_minimal() +
-  scale_fill_manual(
-    values = method_colors2,
-    limits = ord, breaks = ord,
-    labels = c("Full data", "Naive", expression(tau[0.9]),
-               "NPMLE unadjusted", "NPMLE adjusted")
-  )
+
 
 pdf("Manuscript/Figures/Simulation2.pdf", width=7, height = 5)
 fig2
